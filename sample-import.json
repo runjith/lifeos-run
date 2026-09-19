@@ -1,0 +1,62 @@
+{
+  "date": "2026-09-19",
+  "sleep": { "bedtime": "23:10", "wake_time": "06:30", "quality": 4, "notes": "Woke once" },
+  "activities": [
+    { "category": "Work", "title": "Store accounts", "duration_minutes": 250, "start_time": "09:30" },
+    { "category": "Business", "title": "Vendor calls", "duration_minutes": 70 },
+    { "category": "Exercise", "title": "Upper body", "duration_minutes": 65 },
+    { "category": "Walking", "duration_minutes": 35 },
+    { "category": "Family", "duration_minutes": 95 },
+    { "category": "YouTube", "duration_minutes": 45 }
+  ],
+  "workout": {
+    "type": "Upper",
+    "duration_minutes": 65,
+    "notes": "Felt strong on press",
+    "exercises": [
+      {
+        "name": "Bench Press",
+        "sets": [
+          { "weight_kg": 70, "reps": 8 },
+          { "weight_kg": 70, "reps": 7 },
+          { "weight_kg": 70, "reps": 6 }
+        ]
+      },
+      {
+        "name": "Lat Pulldown",
+        "sets": [
+          { "weight_kg": 55, "reps": 10 },
+          { "weight_kg": 55, "reps": 10 }
+        ]
+      },
+      {
+        "name": "Lateral Raise",
+        "sets": [
+          { "weight_kg": 10, "reps": 15 },
+          { "weight_kg": 10, "reps": 13 }
+        ]
+      }
+    ]
+  },
+  "food": [
+    { "name": "Egg (whole)", "quantity": 4, "unit": "piece", "meal": "Breakfast" },
+    { "name": "Chapati", "quantity": 2, "unit": "piece", "meal": "Breakfast" },
+    { "name": "Chicken breast", "quantity": 300, "unit": "g", "meal": "Lunch" },
+    { "name": "Cooked rice", "quantity": 250, "unit": "g", "meal": "Lunch" },
+    { "name": "Whey protein scoop", "quantity": 1, "unit": "scoop", "meal": "Snack" },
+    { "name": "Dal (cooked)", "quantity": 200, "unit": "g", "meal": "Dinner" }
+  ],
+  "weight": { "value": 78.4, "unit": "kg", "note": "Morning" },
+  "measurements": {
+    "Chest": 100,
+    "Waist": 81,
+    "Left Biceps": 35,
+    "Right Biceps": 35,
+    "Body Fat %": 18.2
+  },
+  "review": {
+    "planned": "Close August books, payroll, gym",
+    "completed": "Books closed, gym done, payroll pending",
+    "journal": "Good focus until 4pm, then drifted into YouTube."
+  }
+}

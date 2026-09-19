@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5" />
+<title>LifeOS</title>
+<meta name="description" content="Where did my time go, and how is my health progressing?" />
+<meta name="theme-color" content="#F3F4F3" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="LifeOS" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon-180.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;450;500;550;600;650;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/components.css" />
+</head>
+<body>
+<div id="app">
+  <header class="appbar">
+    <div class="appbar-inner">
+      <div class="grow">
+        <h1 id="app-title">Today</h1>
+        <div class="sub" id="app-sub"></div>
+      </div>
+      <button class="sync-pill hidden" id="sync-pill" data-state="local" aria-label="Sync status">
+        <span class="led"></span><span class="txt">Local</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="view" id="view" role="main"></main>
+
+  <div class="timer-bar" id="timer-bar" aria-live="off"></div>
+
+  <nav class="tabbar" id="tabbar" aria-label="Main"></nav>
+</div>
+
+<div id="boot" style="position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:90">
+  <div style="text-align:center">
+    <div style="font:var(--t-h1);letter-spacing:-.03em">LifeOS</div>
+    <div class="label" style="margin-top:6px">Opening your day…</div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="js/config.js"></script>
+<script src="js/util.js"></script>
+<script src="js/data/seed.js"></script>
+<script src="js/db.js"></script>
+<script src="js/store.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/forms.js"></script>
+<script src="js/day-sheet.js"></script>
+<script src="js/insights.js"></script>
+<script src="js/perf.js"></script>
+<script src="js/timer-ui.js"></script>
+<script src="js/importer.js"></script>
+<script src="js/exporter.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/screens/home.js"></script>
+<script src="js/screens/time.js"></script>
+<script src="js/screens/health.js"></script>
+<script src="js/screens/progress.js"></script>
+<script src="js/screens/more.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
