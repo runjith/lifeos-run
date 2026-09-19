@@ -14,6 +14,6 @@ window.LX = window.LX || {};
 window.LX.VERSION = "1.1.1";
 
 window.LX.CONFIG = {
-  SUPABASE_URL: "https://yutwpnqvqhjmvgbsyigy.supabase.co/rest/v1/",
+  SUPABASE_URL: "https://yutwpnqvqhjmvgbsyigy.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_AhyOp7g93hMgGOTozfOLdg_5sBRKPyo"
 };
