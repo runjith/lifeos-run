@@ -382,4 +382,4 @@ bar floats above the tab bar on every screen and carries Pause/Resume, Delete
 (with a confirmation) and Save.
 
 **Changed a file but the app looks the same.** The service worker cached the old
-shell. Bump `CACHE` in `sw.js` (`lifeos-v1` → `lifeos-v2`) and reload twice.
+shell. Bump `CACHE` in `sw.js` (`lifeos-v1` → `lifeos-v2`) and reload twice. 
