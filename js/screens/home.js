@@ -23,8 +23,12 @@
 
     render: function (el) {
       date = LX.D.today();
-      return Promise.all([store.daySummary(date), LX.perf ? LX.perf.dashboardHTML() : ""]).then(function (res) {
-        var s = res[0], perfHTML = res[1];
+      return Promise.all([
+        store.daySummary(date),
+        LX.perf ? LX.perf.dashboardHTML() : "",
+        LX.weekly ? LX.weekly.dashboardHTML() : ""
+      ]).then(function (res) {
+        var s = res[0], perfHTML = res[1], weeklyHTML = res[2];
         var goals = store.goals;
         var sleepGoal = goals.sleep_minutes && goals.sleep_minutes.target;
         var exGoal = goals.exercise_minutes && goals.exercise_minutes.target;
@@ -101,6 +105,7 @@
             }).join("") + "</div>";
         }
 
+        if (weeklyHTML) html += weeklyHTML;
         if (perfHTML) html += perfHTML;
 
         html += '<button class="btn btn-block" data-review>' + LX.icon("book") + " Write today\u2019s review</button>";
@@ -108,6 +113,7 @@
         el.innerHTML = html;
         bind(el);
         if (LX.perf) LX.perf.bindDashboard(el);
+        if (LX.weekly) LX.weekly.bind(el);
       });
     }
   };

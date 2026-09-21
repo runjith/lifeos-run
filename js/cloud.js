@@ -101,7 +101,7 @@
   function localRecordCount() {
     return Promise.all(LX.STORES.map(function (s) { return db.all(s); })).then(function (all) {
       // seeded lists do not count as "your data"
-      var seeded = ["categories", "exercises", "strength_tests"];
+      var seeded = ["categories", "exercises", "strength_tests", "weekly_goals"];
       return all.reduce(function (n, rows, i) {
         return n + (seeded.indexOf(LX.STORES[i]) >= 0 ? 0 : rows.length);
       }, 0);
@@ -150,12 +150,14 @@
   var CATALOG = {
     categories:     function (r) { return String(r.slug || r.name || "").toLowerCase(); },
     exercises:      function (r) { return String(r.name || "").toLowerCase(); },
-    strength_tests: function (r) { return String(r.slug || r.name || "").toLowerCase(); }
+    strength_tests: function (r) { return String(r.slug || r.name || "").toLowerCase(); },
+    weekly_goals:   function (r) { return String(r.slug || r.name || "").toLowerCase(); }
   };
   var REFERENCES = {
     categories:     [["activities", "category_id"]],
     exercises:      [["workout_exercises", "exercise_id"], ["workout_sets", "exercise_id"]],
-    strength_tests: [["strength_results", "test_id"]]
+    strength_tests: [["strength_results", "test_id"]],
+    weekly_goals:   [["weekly_goal_logs", "goal_id"]]
   };
 
   function repoint(table, oldId, newId) {

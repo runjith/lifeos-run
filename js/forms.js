@@ -6,6 +6,12 @@
   function catOptions() {
     return store.categories.map(function (c) { return { value: c.id, label: c.name }; });
   }
+  /* Same as ui.field but not a <label>, for fields that hold their own buttons:
+     tapping a button inside a label would jump focus into the input. */
+  function fieldDiv(label, inner, hint) {
+    return '<div class="field"><span class="label">' + LX.esc(label) + "</span>" + inner +
+      (hint ? '<span class="hint">' + LX.esc(hint) + "</span>" : "") + "</div>";
+  }
   function done(msg, cb) {
     ui.toast(msg);
     LX.haptic();
@@ -135,82 +141,199 @@
   };
 
   /* ---------------- Food ---------------- */
+  /** How a quantity reads: "150 g", "3 pieces", "1 scoop". */
+  function qtyText(qty, unit) {
+    var n = LX.num(qty, qty % 1 ? 1 : 0);
+    if (unit === "g" || unit === "ml") return n + " " + unit;
+    return n + " " + (unit || "serving") + (Math.abs(qty) === 1 ? "" : "s");
+  }
+
+  /** opts: {date, entry (an existing food_entries row to edit), onDone} */
   forms.logFood = function (opts) {
     opts = opts || {};
-    var date = opts.date || LX.D.today();
+    var entry = opts.entry || null;
+    var date = (entry && entry.date) || opts.date || LX.D.today();
     var meals = ["Breakfast", "Lunch", "Dinner", "Snack"];
-    var guessMeal = (function () {
+    var guessMeal = (entry && entry.meal) || (function () {
       var h = new Date().getHours();
       return h < 11 ? "Breakfast" : h < 16 ? "Lunch" : h < 21 ? "Dinner" : "Snack";
     })();
+
+    /* The food the numbers are currently being worked out from. While there is
+       one, changing the quantity rescales calories and macros; typing over a
+       value yourself lets go of it and your own numbers stand. */
+    var basis = entry ? store.foodBasisFromEntry(entry) : null;
+    var catalog = LX.COMMON_FOODS.slice();     // recent foods are added in front
+
     ui.sheet({
-      title: "Log food",
+      title: entry ? "Edit food" : "Log food",
       body:
         '<div class="segmented" data-meal-seg>' + meals.map(function (m) {
           return '<button type="button" data-meal="' + m + '" aria-pressed="' + (m === guessMeal) + '">' + m + "</button>";
         }).join("") + "</div>" +
-        ui.field("Search common foods", '<input class="input" data-food-search placeholder="Egg, chicken, rice…" />') +
-        '<div data-food-results class="list card flush" style="max-height:210px;overflow:auto"></div>' +
-        '<div class="section-title" style="font-size:.95rem">Or enter it yourself</div>' +
-        ui.field("Food", ui.input("name", { placeholder: "Name" })) +
+        ui.field("Search foods", '<input class="input" data-food-search placeholder="Egg, chicken, rice…" />') +
+        '<div data-food-results class="list card flush" style="max-height:230px;overflow:auto"></div>' +
+        '<div class="section-title" style="font-size:.95rem">' + (entry ? "This entry" : "Or enter it yourself") + "</div>" +
+        ui.field("Food", ui.input("name", { placeholder: "Name", value: entry ? entry.name : "" })) +
         '<div class="field-row">' +
-        ui.field("Quantity", ui.input("quantity", { type: "number", value: 1, step: "0.1", inputmode: "decimal" })) +
-        ui.field("Unit", ui.select("unit", ["g", "ml", "piece", "serving", "scoop", "cup"], "g")) +
+        fieldDiv("Quantity",
+          '<div class="stepper">' +
+          '<button type="button" data-qty-step="-1" aria-label="Less">\u2212</button>' +
+          ui.input("quantity", { type: "number", value: entry ? entry.quantity : 1, step: "0.1", min: 0, inputmode: "decimal" }) +
+          '<button type="button" data-qty-step="1" aria-label="More">+</button></div>') +
+        ui.field("Unit", ui.select("unit", ["g", "ml", "piece", "serving", "scoop", "cup"], entry ? entry.unit : "g")) +
         "</div>" +
+        '<p class="hint" data-food-sum style="margin:0"></p>' +
         '<div class="field-row-3">' +
-        ui.field("Calories", ui.input("calories", { type: "number", inputmode: "numeric", placeholder: "kcal" })) +
-        ui.field("Protein", ui.input("protein", { type: "number", inputmode: "decimal", placeholder: "g" })) +
-        ui.field("Carbs", ui.input("carbs", { type: "number", inputmode: "decimal", placeholder: "g" })) +
+        ui.field("Calories", ui.input("calories", { type: "number", inputmode: "numeric", placeholder: "kcal", value: entry ? entry.calories : "" })) +
+        ui.field("Protein", ui.input("protein", { type: "number", inputmode: "decimal", placeholder: "g", value: entry ? entry.protein : "" })) +
+        ui.field("Carbs", ui.input("carbs", { type: "number", inputmode: "decimal", placeholder: "g", value: entry ? entry.carbs : "" })) +
         "</div>" +
         '<div class="field-row">' +
-        ui.field("Fat", ui.input("fat", { type: "number", inputmode: "decimal", placeholder: "g" })) +
-        ui.field("Fibre", ui.input("fiber", { type: "number", inputmode: "decimal", placeholder: "g" })) +
+        ui.field("Fat", ui.input("fat", { type: "number", inputmode: "decimal", placeholder: "g", value: entry ? entry.fat : "" })) +
+        ui.field("Fibre", ui.input("fiber", { type: "number", inputmode: "decimal", placeholder: "g", value: entry ? entry.fiber : "" })) +
         "</div>" +
         ui.field("Date", ui.input("date", { type: "date", value: date })),
-      footer: '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Save food</button>',
+      footer: (entry
+        ? '<button class="btn btn-danger" data-del-entry>Delete</button>'
+        : '<button class="btn" data-close>Cancel</button>') +
+        '<button class="btn btn-primary" data-save>' + (entry ? "Save changes" : "Save food") + "</button>",
       onMount: function (root, close) {
         var meal = guessMeal;
         LX.on(root, "click", "[data-meal]", function (e, t) {
           meal = t.dataset.meal;
           LX.$$("[data-meal]", root).forEach(function (b) { b.setAttribute("aria-pressed", b === t); });
         });
+
         var results = root.querySelector("[data-food-results]");
         var search = root.querySelector("[data-food-search]");
-        function renderResults(q) {
-          var list = LX.COMMON_FOODS.filter(function (f) {
-            return !q || f.name.toLowerCase().indexOf(q.toLowerCase()) >= 0;
-          }).slice(0, 8);
-          results.innerHTML = list.map(function (f, i) {
-            return '<button class="list-row tap" data-preset="' + LX.COMMON_FOODS.indexOf(f) + '">' +
-              '<span class="grow"><span class="primary">' + LX.esc(f.name) + "</span><br>" +
-              '<span class="secondary">' + f.kcal + " kcal · " + f.p + "g protein per " + f.size + " " + f.unit + "</span></span>" +
-              LX.icon("plus") + "</button>";
-          }).join("") || '<div style="padding:14px" class="small muted">No match — type the values yourself below.</div>';
+        var qtyEl = root.querySelector('[name="quantity"]');
+        var nameEl = root.querySelector('[name="name"]');
+        var unitEl = root.querySelector('[name="unit"]');
+        var macroNames = ["calories", "protein", "carbs", "fat", "fiber"];
+
+        /* ---- the list of foods ---- */
+        function rowHTML(f, i) {
+          var per = f.custom
+            ? "You type the values yourself"
+            : LX.num(f.kcal, f.kcal % 1 ? 1 : 0) + " kcal · " + LX.num(f.p, 1) + "g protein per " +
+              qtyText(f.size, f.unit);
+          return '<button class="list-row tap" data-preset="' + i + '">' +
+            '<span class="grow"><span class="primary">' + LX.esc(f.name) + "</span><br>" +
+            '<span class="secondary">' + LX.esc(per) + "</span></span>" +
+            (f.recent ? '<span class="pill-tag">before</span>' : "") +
+            LX.icon("plus") + "</button>";
         }
-        renderResults("");
-        search.addEventListener("input", function () { renderResults(search.value); });
-        LX.on(root, "click", "[data-preset]", function (e, t) {
-          var p = LX.COMMON_FOODS[Number(t.dataset.preset)];
-          var qtyEl = root.querySelector('[name="quantity"]');
-          var qty = Number(qtyEl.value) || p.size;
-          if (Number(qtyEl.value) === 1 && p.unit === "g") qty = p.size;
-          var scaled = store.scaleFood(p, qty);
-          root.querySelector('[name="name"]').value = scaled.name;
-          qtyEl.value = qty;
-          root.querySelector('[name="unit"]').value = p.unit;
-          ["calories", "protein", "carbs", "fat", "fiber"].forEach(function (k) {
-            root.querySelector('[name="' + k + '"]').value = scaled[k];
+        function renderResults() {
+          var q = (search.value || "").toLowerCase();
+          var hits = [];
+          catalog.forEach(function (f, i) {
+            if (!q || f.name.toLowerCase().indexOf(q) >= 0) hits.push(rowHTML(f, i));
           });
-          ui.toast(p.name + " filled in");
+          results.innerHTML = hits.slice(0, 12).join("") ||
+            '<div style="padding:14px" class="small muted">No match — type the values yourself below.</div>';
+        }
+        renderResults();
+        search.addEventListener("input", renderResults);
+
+        /* Foods already logged appear first, carrying whatever values were saved
+           with them, so anything eaten once is one tap away next time. */
+        store.recentFoods(4).then(function (recent) {
+          if (!recent.length) return;
+          var seen = {};
+          recent.forEach(function (f) { f.recent = true; seen[f.name.toLowerCase()] = 1; });
+          catalog = recent.concat(LX.COMMON_FOODS.filter(function (f) {
+            return !seen[f.name.toLowerCase()];      // no food listed twice
+          }));
+          renderResults();
         });
+
+        /* ---- keeping the numbers honest ---- */
+        function recalc() {
+          if (!basis || basis.custom) return;
+          var scaled = store.scaleFood(basis, Number(qtyEl.value) || 0);
+          macroNames.forEach(function (k) { root.querySelector('[name="' + k + '"]').value = scaled[k]; });
+        }
+        function summarise() {
+          var box = root.querySelector("[data-food-sum]");
+          var v = ui.values(root);
+          if (!v.name) { box.textContent = "Pick a food above, or type one in below."; return; }
+          var qty = Number(v.quantity) || 0;
+          if (!v.calories && !v.protein) {
+            box.textContent = v.name + " · " + qtyText(qty, v.unit) + " · type its calories below";
+            return;
+          }
+          box.textContent = v.name + " · " + qtyText(qty, v.unit) + " · " +
+            LX.num(Number(v.calories) || 0) + " kcal, " + LX.num(Number(v.protein) || 0, 1) + "g protein" +
+            (basis && !basis.custom ? "" : " — your own values");
+        }
+        function refresh() { recalc(); summarise(); }
+
+        LX.on(root, "click", "[data-preset]", function (e, t) {
+          var f = catalog[Number(t.dataset.preset)];
+          if (!f) return;
+          var step = Number(f.serve) || Number(f.size) || 1;
+          var same = basis && basis.name === f.name && basis.unit === f.unit;
+          // tapping the same food again adds another helping: 1 egg, 2 eggs,
+          // 3 eggs. A different food starts at its own normal helping.
+          qtyEl.value = same ? LX.round((Number(qtyEl.value) || 0) + step, 2) : step;
+          basis = f;
+          nameEl.value = f.as || f.name;
+          unitEl.value = f.unit;
+          if (f.custom) macroNames.forEach(function (k) { root.querySelector('[name="' + k + '"]').value = ""; });
+          refresh();
+          LX.haptic();
+          ui.toast((f.as || f.name) + " · " + qtyText(Number(qtyEl.value) || 0, f.unit) +
+            (f.custom ? " — now type its values" : ""));
+        });
+
+        LX.on(root, "click", "[data-qty-step]", function (e, t) {
+          var step = basis ? (Number(basis.serve) || Number(basis.size) || 1) : 1;
+          var next = (Number(qtyEl.value) || 0) + step * Number(t.dataset.qtyStep);
+          qtyEl.value = LX.round(Math.max(0, next), 2);
+          refresh();
+        });
+
+        qtyEl.addEventListener("input", refresh);
+        unitEl.addEventListener("change", function () {
+          // a different unit means the values no longer describe what is entered
+          if (basis && basis.unit !== unitEl.value) basis = null;
+          summarise();
+        });
+        nameEl.addEventListener("input", function () { basis = null; summarise(); });
+        macroNames.forEach(function (k) {
+          root.querySelector('[name="' + k + '"]').addEventListener("input", function () {
+            basis = null;            // your own numbers win from here on
+            summarise();
+          });
+        });
+        summarise();
+
         root.querySelector("[data-save]").addEventListener("click", function () {
           var v = ui.values(root);
           if (!v.name) return ui.toast("Give the food a name", "danger");
+          var qty = Number(v.quantity);
+          if (!isFinite(qty) || qty <= 0) return ui.toast("Enter how much you had", "danger");
           store.addFood({
-            date: v.date, meal: meal, name: v.name, quantity: Number(v.quantity) || 1, unit: v.unit,
+            id: entry ? entry.id : null,
+            created_at: entry ? entry.created_at : null,
+            date: v.date, meal: meal, name: v.name, quantity: qty, unit: v.unit,
             calories: Number(v.calories) || 0, protein: Number(v.protein) || 0, carbs: Number(v.carbs) || 0,
             fat: Number(v.fat) || 0, fiber: Number(v.fiber) || 0
-          }).then(function () { close(); done("Food saved", opts.onDone); });
+          }).then(function () { close(); done(entry ? "Food updated" : "Food saved", opts.onDone); });
+        });
+
+        var del = root.querySelector("[data-del-entry]");
+        if (del) del.addEventListener("click", function () {
+          ui.confirm({
+            title: "Delete this entry?", message: "It is removed and the day's totals recalculate.",
+            confirmText: "Delete", danger: true
+          }).then(function (ok) {
+            if (!ok) return;
+            LX.db.remove("food_entries", entry.id).then(function () {
+              close(); done("Entry deleted", opts.onDone);
+            });
+          });
         });
       }
     });

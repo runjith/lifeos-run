@@ -54,7 +54,7 @@ function makeBrokenDatabase() {
   console.log("created a database with malformed stores");
 
   for (const f of ["js/config.js", "js/util.js", "js/data/seed.js", "js/db.js", "js/store.js",
-    "js/ui.js", "js/charts.js", "js/forms.js", "js/day-sheet.js", "js/insights.js", "js/perf.js",
+    "js/ui.js", "js/charts.js", "js/forms.js", "js/day-sheet.js", "js/insights.js", "js/perf.js", "js/weekly.js",
     "js/timer-ui.js", "js/importer.js", "js/exporter.js", "js/cloud.js", "js/screens/home.js",
     "js/screens/time.js", "js/screens/health.js", "js/screens/progress.js", "js/screens/more.js",
     "js/app.js"]) {

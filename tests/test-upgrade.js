@@ -57,7 +57,7 @@ function assert(c, m) { if (!c) { failed = true; console.error("ASSERT FAIL:", m
   console.log("created a version-1 database with 1 weight record");
 
   for (const f of ["js/config.js", "js/util.js", "js/data/seed.js", "js/db.js", "js/store.js",
-    "js/ui.js", "js/charts.js", "js/forms.js", "js/perf.js", "js/timer-ui.js",
+    "js/ui.js", "js/charts.js", "js/forms.js", "js/perf.js", "js/weekly.js", "js/timer-ui.js",
     "js/importer.js", "js/exporter.js", "js/cloud.js", "js/screens/home.js", "js/screens/time.js",
     "js/screens/health.js", "js/screens/progress.js", "js/screens/more.js", "js/app.js"]) {
     window.eval(fs.readFileSync(path.join(ROOT, f), "utf8"));
@@ -74,6 +74,14 @@ function assert(c, m) { if (!c) { failed = true; console.error("ASSERT FAIL:", m
 
   const tests = await LX.db.all("strength_tests");
   assert(tests.length >= 5, "the new strength stores were created and seeded (" + tests.length + " tests)");
+
+  const goals = await LX.db.all("weekly_goals");
+  assert(goals.length >= 2, "the weekly goal stores were created and seeded (" + goals.length + " goals)");
+  const hand = goals.find(g => g.name.indexOf("Handstand") === 0);
+  await LX.weekly.saveLog(hand, { date: LX.D.today(), value: 12 });
+  const wlogs = await LX.weekly.logs(hand.id);
+  assert(wlogs.length === 1 && wlogs[0].week_start === LX.D.weekStart(LX.D.today()),
+    "weekly entries can be written to the upgraded database");
 
   const cindy = LX.perf.tests.find(t => t.name === "Cindy");
   await LX.perf.saveResult(cindy, { date: LX.D.today(), rounds: 16 });

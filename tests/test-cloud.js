@@ -10,7 +10,7 @@ const FDBKeyRange = require("fake-indexeddb/lib/FDBKeyRange");
 const ROOT = path.join(__dirname, "..");
 const HTML = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const FILES = ["js/config.js", "js/util.js", "js/data/seed.js", "js/db.js", "js/store.js",
-  "js/ui.js", "js/charts.js", "js/forms.js", "js/day-sheet.js", "js/insights.js", "js/perf.js",
+  "js/ui.js", "js/charts.js", "js/forms.js", "js/day-sheet.js", "js/insights.js", "js/perf.js", "js/weekly.js",
   "js/timer-ui.js", "js/importer.js", "js/exporter.js", "js/cloud.js", "js/screens/home.js",
   "js/screens/time.js", "js/screens/health.js", "js/screens/progress.js", "js/screens/more.js",
   "js/app.js"].map(f => ({ f, src: fs.readFileSync(path.join(ROOT, f), "utf8") }));
@@ -155,6 +155,7 @@ async function makeDevice(name, server) {
     exercises: [{ name: "Bench Press", sets: [{ weight_kg: 80, reps: 5 }] }]
   });
   await LXA.perf.saveResult(LXA.perf.tests.find(t => t.name === "Cindy"), { date: today, rounds: 18 });
+  await LXA.weekly.saveLog(LXA.weekly.goals.find(g => g.name.indexOf("Handstand") === 0), { date: today, value: 11 });
   const localActivitiesBefore = await A.count("activities");
 
   const signUp = await LXA.cloud.signUp("me@example.com", "password123");
@@ -167,6 +168,7 @@ async function makeDevice(name, server) {
   assert(server.count("activities", uid) === localActivitiesBefore, "activities reached the cloud");
   assert(server.count("workout_sets", uid) === 1, "workout sets reached the cloud");
   assert(server.count("strength_results", uid) === 1, "the Cindy result reached the cloud");
+  assert(server.count("weekly_goal_logs", uid) === 1, "the weekly goal entry reached the cloud");
   assert(await A.count("activities") === localActivitiesBefore, "nothing local was deleted by signing in");
   assert((await LXA.db.outbox()).length === 0, "the outbox is empty after a successful sync");
 
@@ -197,6 +199,9 @@ async function makeDevice(name, server) {
   assert(exB.filter(e => e.name === "Bench Press").length === 1, "exactly one 'Bench Press' exercise");
   const testsB = await LXB.db.all("strength_tests");
   assert(testsB.filter(t => t.name === "Cindy").length === 1, "exactly one 'Cindy' test");
+  const wgB = await LXB.db.all("weekly_goals");
+  assert(wgB.filter(g => g.name.indexOf("Handstand") === 0).length === 1,
+    "exactly one 'Handstand practice' weekly goal, not one per device");
   assert(catsB.length === LXA.store.categories.length, "category list is the same size on both devices");
 
   const offlineRow = (await LXB.db.all("activities")).find(a => a.title === "Offline note");
@@ -206,6 +211,9 @@ async function makeDevice(name, server) {
   assert(bActs.some(a => a.title === "Store accounts"), "device B pulled device A's activity");
   assert((await LXB.db.all("workout_sets")).length === 1, "device B pulled the workout sets");
   assert((await LXB.db.all("strength_results")).length === 1, "device B pulled the Cindy result");
+  const wlB = await LXB.db.all("weekly_goal_logs");
+  assert(wlB.length === 1 && wlB[0].value === 11, "device B pulled the weekly goal entry");
+  assert(wgB.some(g => g.id === wlB[0].goal_id), "and it points at the account's own goal");
   assert(server.count("categories", uid) === catsB.length, "no duplicate categories were pushed to the cloud");
   assert(server.count("exercises", uid) === exB.length, "no duplicate exercises were pushed to the cloud");
 
@@ -270,6 +278,7 @@ async function makeDevice(name, server) {
   assert((await C.LX.db.all("activities")).length === aActs.length, "a cleared device restores every activity");
   assert((await C.LX.db.all("categories")).length === catsB.length, "with no duplicate categories");
   assert((await C.LX.db.all("strength_results")).length === 1, "and the performance results");
+  assert((await C.LX.db.all("weekly_goal_logs")).length === 1, "and the weekly goal record");
 
   console.log(failed ? "\nFAILURES ABOVE" : "\nCloud sync OK");
   process.exit(failed ? 1 : 0);

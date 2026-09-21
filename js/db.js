@@ -7,7 +7,7 @@
   var DB_NAME = "lifeos";
   /* Bump this whenever a store is added. Installs opened on an older version are
      upgraded in place — nothing already saved is touched. */
-  var DB_VERSION = 2;
+  var DB_VERSION = 3;
 
   /** store name -> extra indexes */
   var STORES = {
@@ -25,7 +25,9 @@
     daily_reviews:     ["date", "updated_at"],
     profiles:          ["updated_at"],
     strength_tests:    ["updated_at"],
-    strength_results:  ["test_id", "date", "updated_at"]
+    strength_results:  ["test_id", "date", "updated_at"],
+    weekly_goals:      ["updated_at"],
+    weekly_goal_logs:  ["goal_id", "week_start", "date", "updated_at"]
   };
   LX.STORES = Object.keys(STORES);
 

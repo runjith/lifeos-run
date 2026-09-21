@@ -64,28 +64,43 @@
   ];
 
   /* A short list of foods so logging a normal day takes seconds.
-     name, unit, per-unit: kcal, protein, carbs, fat, fibre */
+
+       unit    how you measure this food — and the unit the quantity is typed in
+       size    the amount the values below describe (100 g, 1 piece, 1 scoop)
+       serve   one normal helping. Tapping a food adds this much, and tapping it
+               again adds it again, so three taps on Egg gives you 3 eggs.
+       custom  true for foods that vary far too much to estimate. The name and
+               the unit are filled in and you type the values yourself.
+       as      the name written into the entry, when the list needs a longer
+               label than the food should be saved under.
+
+     kcal / p / c / f / fib are per `size`, and everything is scaled from there. */
   LX.COMMON_FOODS = [
-    { name: "Egg (whole)",        unit: "piece", size: 1,   kcal: 78,  p: 6.3,  c: 0.6, f: 5.3, fib: 0 },
-    { name: "Egg white",          unit: "piece", size: 1,   kcal: 17,  p: 3.6,  c: 0.2, f: 0.1, fib: 0 },
-    { name: "Chicken breast",     unit: "g",     size: 100, kcal: 165, p: 31,   c: 0,   f: 3.6, fib: 0 },
-    { name: "Mutton curry",       unit: "g",     size: 100, kcal: 210, p: 18,   c: 3,   f: 14,  fib: 0.4 },
-    { name: "Fish (rohu)",        unit: "g",     size: 100, kcal: 97,  p: 17,   c: 0,   f: 3,   fib: 0 },
-    { name: "Paneer",             unit: "g",     size: 100, kcal: 296, p: 20,   c: 3.4, f: 22,  fib: 0 },
-    { name: "Cooked rice",        unit: "g",     size: 100, kcal: 130, p: 2.7,  c: 28,  f: 0.3, fib: 0.4 },
-    { name: "Chapati",            unit: "piece", size: 1,   kcal: 104, p: 3,    c: 18,  f: 2.5, fib: 2.6 },
-    { name: "Idli",               unit: "piece", size: 1,   kcal: 58,  p: 2,    c: 12,  f: 0.4, fib: 0.8 },
-    { name: "Dosa",               unit: "piece", size: 1,   kcal: 133, p: 2.7,  c: 22,  f: 3.7, fib: 1 },
-    { name: "Dal (cooked)",       unit: "g",     size: 100, kcal: 116, p: 7.6,  c: 20,  f: 0.4, fib: 7.9 },
-    { name: "Curd / yoghurt",     unit: "g",     size: 100, kcal: 61,  p: 3.5,  c: 4.7, f: 3.3, fib: 0 },
-    { name: "Milk (full fat)",    unit: "ml",    size: 100, kcal: 61,  p: 3.2,  c: 4.8, f: 3.3, fib: 0 },
-    { name: "Whey protein scoop", unit: "scoop", size: 1,   kcal: 120, p: 24,   c: 3,   f: 1.5, fib: 0 },
-    { name: "Banana",             unit: "piece", size: 1,   kcal: 105, p: 1.3,  c: 27,  f: 0.4, fib: 3.1 },
-    { name: "Apple",              unit: "piece", size: 1,   kcal: 95,  p: 0.5,  c: 25,  f: 0.3, fib: 4.4 },
-    { name: "Almonds",            unit: "g",     size: 100, kcal: 579, p: 21,   c: 22,  f: 50,  fib: 12.5 },
-    { name: "Peanut butter",      unit: "g",     size: 100, kcal: 588, p: 25,   c: 20,  f: 50,  fib: 6 },
-    { name: "Oats (dry)",         unit: "g",     size: 100, kcal: 389, p: 17,   c: 66,  f: 7,   fib: 10.6 },
-    { name: "Mixed vegetables",   unit: "g",     size: 100, kcal: 65,  p: 2.6,  c: 13,  f: 0.5, fib: 4 }
+    { name: "Egg (whole)",        unit: "piece", size: 1,   serve: 1,   kcal: 78,  p: 6.3,  c: 0.6, f: 5.3, fib: 0 },
+    { name: "Chicken breast",     unit: "g",     size: 100, serve: 100, kcal: 165, p: 31,   c: 0,   f: 3.6, fib: 0 },
+    { name: "Cooked rice",        unit: "g",     size: 100, serve: 150, kcal: 130, p: 2.7,  c: 28,  f: 0.3, fib: 0.4 },
+    { name: "Curd / yoghurt",     unit: "g",     size: 100, serve: 100, kcal: 61,  p: 3.5,  c: 4.7, f: 3.3, fib: 0 },
+    { name: "Milk (full fat)",    unit: "ml",    size: 100, serve: 200, kcal: 61,  p: 3.2,  c: 4.8, f: 3.3, fib: 0 },
+    { name: "Sugar",              unit: "g",     size: 100, serve: 5,   kcal: 387, p: 0,    c: 100, f: 0,   fib: 0 },
+    { name: "Dates",              unit: "piece", size: 1,   serve: 2,   kcal: 66,  p: 0.4,  c: 18,  f: 0.1, fib: 1.6 },
+    { name: "Oats (dry)",         unit: "g",     size: 100, serve: 40,  kcal: 389, p: 17,   c: 66,  f: 7,   fib: 10.6 },
+    { name: "Banana",             unit: "piece", size: 1,   serve: 1,   kcal: 105, p: 1.3,  c: 27,  f: 0.4, fib: 3.1 },
+    { name: "Curry (enter your own)", as: "Curry", unit: "g", size: 100, serve: 150, custom: true, kcal: 0, p: 0, c: 0, f: 0, fib: 0 },
+    { name: "Fruit (enter your own)", as: "Fruit", unit: "piece", size: 1, serve: 1, custom: true, kcal: 0, p: 0, c: 0, f: 0, fib: 0 },
+    { name: "Chapati",            unit: "piece", size: 1,   serve: 2,   kcal: 104, p: 3,    c: 18,  f: 2.5, fib: 2.6 },
+    { name: "Dal (cooked)",       unit: "g",     size: 100, serve: 150, kcal: 116, p: 7.6,  c: 20,  f: 0.4, fib: 7.9 },
+    { name: "Paneer",             unit: "g",     size: 100, serve: 50,  kcal: 296, p: 20,   c: 3.4, f: 22,  fib: 0 },
+    { name: "Fish (rohu)",        unit: "g",     size: 100, serve: 100, kcal: 97,  p: 17,   c: 0,   f: 3,   fib: 0 },
+    { name: "Mutton curry",       unit: "g",     size: 100, serve: 150, kcal: 210, p: 18,   c: 3,   f: 14,  fib: 0.4 },
+    { name: "Egg white",          unit: "piece", size: 1,   serve: 1,   kcal: 17,  p: 3.6,  c: 0.2, f: 0.1, fib: 0 },
+    { name: "Idli",               unit: "piece", size: 1,   serve: 2,   kcal: 58,  p: 2,    c: 12,  f: 0.4, fib: 0.8 },
+    { name: "Dosa",               unit: "piece", size: 1,   serve: 1,   kcal: 133, p: 2.7,  c: 22,  f: 3.7, fib: 1 },
+    { name: "Whey protein scoop", unit: "scoop", size: 1,   serve: 1,   kcal: 120, p: 24,   c: 3,   f: 1.5, fib: 0 },
+    { name: "Ghee",               unit: "g",     size: 100, serve: 5,   kcal: 900, p: 0,    c: 0,   f: 100, fib: 0 },
+    { name: "Apple",              unit: "piece", size: 1,   serve: 1,   kcal: 95,  p: 0.5,  c: 25,  f: 0.3, fib: 4.4 },
+    { name: "Almonds",            unit: "g",     size: 100, serve: 20,  kcal: 579, p: 21,   c: 22,  f: 50,  fib: 12.5 },
+    { name: "Peanut butter",      unit: "g",     size: 100, serve: 15,  kcal: 588, p: 25,   c: 20,  f: 50,  fib: 6 },
+    { name: "Mixed vegetables",   unit: "g",     size: 100, serve: 100, kcal: 65,  p: 2.6,  c: 13,  f: 0.5, fib: 4 }
   ];
 
   LX.DEFAULT_GOALS = [
@@ -127,4 +142,29 @@
   ];
 
   LX.RUN_DISTANCES = [1, 2, 3, 5, 10];
+})(window.LX);
+
+/* ---------------------------------------------------------------------------
+   Weekly goals — skills and habits you want to attempt every week, like ten
+   minutes of handstand practice. Separate again from both workouts and
+   performance tests: ticking one off never writes a workout or a test result.
+--------------------------------------------------------------------------- */
+(function (LX) {
+  "use strict";
+
+  /* Each type says what one attempt is measured in. `unit` is the wording used
+     everywhere; `custom` lets you write your own. */
+  LX.WEEKLY_GOAL_TYPES = {
+    duration: { name: "Duration", unit: "minutes",  hint: "Practise for at least this many minutes" },
+    reps:     { name: "Reps",     unit: "reps",     hint: "Do at least this many reps in one go" },
+    sessions: { name: "Sessions", unit: "sessions", hint: "Turning up is the whole target — nothing to measure" },
+    custom:   { name: "Custom",   unit: "",         hint: "Your own number, in your own unit" }
+  };
+
+  LX.SEED_WEEKLY_GOALS = [
+    { slug: "one-arm-pushup", name: "One-arm push-up practice", target_type: "duration",
+      target_value: 10, target_unit: "minutes", times_per_week: 1, notes: "" },
+    { slug: "handstand", name: "Handstand practice", target_type: "duration",
+      target_value: 10, target_unit: "minutes", times_per_week: 1, notes: "" }
+  ];
 })(window.LX);

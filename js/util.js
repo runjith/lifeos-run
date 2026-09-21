@@ -39,6 +39,20 @@ window.LX = window.LX || {};
     return D.parse(iso).toLocaleDateString(undefined, { weekday: "narrow" });
   };
   D.isToday = function (iso) { return iso === D.today(); };
+  /* Weeks run Monday to Sunday. Weekly goals are judged on a whole calendar
+     week, which is why this is a fixed Monday and not "the last seven days". */
+  D.weekStart = function (iso) {
+    var d = D.parse(iso || D.today());
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return D.iso(d);
+  };
+  D.weekEnd = function (iso) { return D.add(D.weekStart(iso), 6); };
+  D.weekLabel = function (startIso) {
+    var here = D.weekStart(D.today());
+    if (startIso === here) return "This week";
+    if (startIso === D.add(here, -7)) return "Last week";
+    return D.short(startIso) + " – " + D.short(D.add(startIso, 6));
+  };
   D.relative = function (iso) {
     if (D.isToday(iso)) return "Today";
     if (iso === D.add(D.today(), -1)) return "Yesterday";

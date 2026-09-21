@@ -26,7 +26,7 @@ global.fetch = window.fetch;
 
 const files = [
   "js/config.js", "js/util.js", "js/data/seed.js", "js/db.js", "js/store.js",
-  "js/ui.js", "js/charts.js", "js/forms.js", "js/day-sheet.js", "js/insights.js", "js/perf.js", "js/timer-ui.js",
+  "js/ui.js", "js/charts.js", "js/forms.js", "js/day-sheet.js", "js/insights.js", "js/perf.js", "js/weekly.js", "js/timer-ui.js",
   "js/importer.js", "js/exporter.js", "js/cloud.js",
   "js/screens/home.js", "js/screens/time.js", "js/screens/health.js",
   "js/screens/progress.js", "js/screens/more.js", "js/app.js"
@@ -420,6 +420,251 @@ function assert(cond, msg) {
   assert(sheets() === 1, "tapping a day in Time opens its detail");
   LX.ui.closeAllSheets();
   await wait(320);
+
+  // ---------------------------------------------------------------- food quantities
+  console.log("\n-- food quantities --");
+
+  // the preset list carries a unit and a normal helping for every food
+  const F = n => LX.COMMON_FOODS.find(x => x.name.indexOf(n) === 0);
+  assert(LX.COMMON_FOODS.every(f => f.unit && f.size > 0 && f.serve > 0),
+    "every food has a unit, a basis size and a helping");
+  assert(F("Egg").unit === "piece" && F("Chicken").unit === "g" && F("Milk").unit === "ml",
+    "eggs are pieces, chicken is grams, milk is millilitres");
+  assert(!!F("Sugar") && !!F("Dates") && !!F("Curry") && !!F("Fruit"),
+    "sugar, dates, curry and a generic fruit are in the list");
+  assert(F("Curry").custom === true && F("Fruit").custom === true,
+    "curry and fruit are marked as enter-your-own");
+  assert(F("Sugar").serve === 5, "a tap of sugar adds a teaspoon, not 100g");
+
+  // scaling: the heart of the bug
+  const egg1 = LX.store.scaleFood(F("Egg"), 1);
+  const egg4 = LX.store.scaleFood(F("Egg"), 4);
+  assert(egg4.calories === egg1.calories * 4, "4 eggs is four times 1 egg (" + egg4.calories + " kcal)");
+  assert(egg4.protein === LX.round(F("Egg").p * 4, 1), "protein scales with the quantity too");
+  const rice250 = LX.store.scaleFood(F("Cooked rice"), 250);
+  assert(rice250.calories === LX.round(F("Cooked rice").kcal * 2.5, 0),
+    "250g of rice is 2.5x the per-100g values (" + rice250.calories + " kcal)");
+  assert(LX.store.scaleFood(F("Egg"), 0).calories === 0, "a quantity of zero is zero, not NaN");
+
+  // the sheet: tapping the same food again adds another helping
+  await LX.app.go("home");
+  document.querySelector('[data-quick="food"]').click();
+  await new Promise(r => setTimeout(r, 80));   // let the recent-foods list settle
+  let sheet = document.querySelector(".sheet");
+  const qtyOf = () => Number(sheet.querySelector('[name="quantity"]').value);
+  const kcalOf = () => Number(sheet.querySelector('[name="calories"]').value);
+  const tapFood = name => {
+    const box = sheet.querySelector("[data-food-search]");
+    box.value = name;
+    box.dispatchEvent(new window.Event("input", { bubbles: true }));
+    const btn = Array.from(sheet.querySelectorAll("[data-preset]"))
+      .find(b => b.textContent.trim().indexOf(name) === 0);
+    if (!btn) { console.error("ASSERT FAIL: no row for " + name); process.exitCode = 1; return; }
+    btn.click();
+  };
+  const tapEgg = () => tapFood("Egg (whole)");
+
+  tapEgg();
+  assert(qtyOf() === 1 && kcalOf() === 78, "one tap on Egg = 1 egg, 78 kcal");
+  tapEgg();
+  assert(qtyOf() === 2 && kcalOf() === 156, "tapping again = 2 eggs, 156 kcal (got " + qtyOf() + ", " + kcalOf() + ")");
+  tapEgg();
+  assert(qtyOf() === 3 && kcalOf() === 234, "and again = 3 eggs, 234 kcal (got " + qtyOf() + ", " + kcalOf() + ")");
+  assert(sheet.querySelector('[name="unit"]').value === "piece", "the unit follows the food");
+
+  // typing a quantity recalculates the nutrition
+  const qtyBox = sheet.querySelector('[name="quantity"]');
+  qtyBox.value = "1";
+  qtyBox.dispatchEvent(new window.Event("input", { bubbles: true }));
+  const oneEggKcal = kcalOf(), oneEggPro = Number(sheet.querySelector('[name="protein"]').value);
+  qtyBox.value = "4";
+  qtyBox.dispatchEvent(new window.Event("input", { bubbles: true }));
+  assert(kcalOf() === oneEggKcal * 4, "typing 4 gives four eggs' calories (got " + kcalOf() + ")");
+  // scaled from the exact per-unit value, not from the rounded figure on screen
+  assert(Math.abs(Number(sheet.querySelector('[name="protein"]').value) - oneEggPro * 4) < 0.5,
+    "and four eggs' protein (got " + sheet.querySelector('[name="protein"]').value + ")");
+
+  // the +/- stepper moves by one helping
+  sheet.querySelector('[data-qty-step="1"]').click();
+  assert(qtyOf() === 5 && kcalOf() === oneEggKcal * 5, "the + button adds another egg");
+  sheet.querySelector('[data-qty-step="-1"]').click();
+  assert(qtyOf() === 4, "the - button takes one away");
+
+  // a gram food steps by its own helping, not by one gram
+  tapFood("Chicken breast");
+  assert(qtyOf() === 100 && kcalOf() === 165, "chicken starts at 100g (got " + qtyOf() + ", " + kcalOf() + ")");
+  tapFood("Chicken breast");
+  assert(qtyOf() === 200 && kcalOf() === 330, "tapping chicken again = 200g, 330 kcal");
+
+  // typing your own values stops the app overwriting them
+  const proBox = sheet.querySelector('[name="protein"]');
+  proBox.value = "99";
+  proBox.dispatchEvent(new window.Event("input", { bubbles: true }));
+  qtyBox.value = "300";
+  qtyBox.dispatchEvent(new window.Event("input", { bubbles: true }));
+  assert(Number(proBox.value) === 99, "your own numbers are left alone once you type them");
+
+  LX.ui.closeAllSheets();
+  await new Promise(r => setTimeout(r, 320));
+
+  // editing a saved entry rescales it and does not duplicate it
+  const eggEntry = await LX.store.addFood({
+    date: today, meal: "Breakfast", name: "Egg (whole)", quantity: 1, unit: "piece",
+    calories: 78, protein: 6.3, carbs: 0.6, fat: 5.3, fiber: 0
+  });
+  const foodsBefore = (await LX.db.all("food_entries")).length;
+  const basis = LX.store.foodBasisFromEntry(eggEntry);
+  const four = LX.store.scaleFood(basis, 4);
+  assert(four.calories === 312, "an existing 1-egg entry rescales to 312 kcal at 4 eggs");
+  await LX.store.addFood(Object.assign({ id: eggEntry.id, created_at: eggEntry.created_at },
+    { date: today, meal: "Breakfast", name: "Egg (whole)", quantity: 4, unit: "piece" }, four));
+  const foodsAfter = await LX.db.all("food_entries");
+  assert(foodsAfter.length === foodsBefore, "editing an entry does not create a second one");
+  const edited = foodsAfter.find(f => f.id === eggEntry.id);
+  assert(edited.quantity === 4 && edited.calories === 312, "the edited entry holds 4 eggs and their calories");
+  assert(edited.created_at === eggEntry.created_at, "an edit keeps the original created_at");
+
+  // foods logged before come back to the top of the list
+  const recents = await LX.store.recentFoods(6);
+  assert(recents.some(r => r.name === "Egg (whole)"), "a food logged before is offered again");
+  assert(recents.every(r => r.size === 1 && r.serve > 0), "recent foods carry a per-unit basis");
+
+  // the Food tab lets you reopen an entry
+  LX.screens.health.setTab("nutrition");
+  await LX.app.go("health");
+  await new Promise(r => setTimeout(r, 40));
+  assert(!!document.querySelector("#view [data-edit-food]"), "food entries are tappable for editing");
+  assert(document.getElementById("view").innerHTML.indexOf("NaN") === -1, "Food tab output is clean");
+
+  // ---------------------------------------------------------------- weekly goals
+  console.log("\n-- weekly goals --");
+  const wk = LX.weekly;
+  const G = n => wk.goals.find(g => g.name.indexOf(n) === 0);
+  assert(!!G("One-arm") && !!G("Handstand"), "the two example goals are seeded");
+
+  // weeks run Monday to Sunday
+  const monday = LX.D.weekStart(today);
+  assert(LX.D.parse(monday).getDay() === 1, "a week starts on a Monday");
+  assert(LX.D.weekEnd(monday) === LX.D.add(monday, 6), "and ends six days later");
+  assert(LX.D.weekStart(LX.D.add(monday, 3)) === monday, "any day in the week maps back to that Monday");
+  assert(LX.D.weekLabel(monday) === "This week" && LX.D.weekLabel(LX.D.add(monday, -7)) === "Last week",
+    "recent weeks are named rather than dated");
+
+  const workoutsPre = (await LX.db.all("workouts")).length;
+  const actsPre = (await LX.db.all("activities")).length;
+  const testsPre = (await LX.perf.results(null)).length;
+
+  // pending until it is ticked
+  const oap = G("One-arm");
+  let o = await wk.overview(oap.id);
+  assert(!o.thisWeek.complete && o.thisWeek.done === 0, "a new week starts as not completed");
+
+  // a session under the target is recorded but does not tick the week off
+  await wk.saveLog(oap, { date: today, value: 6 });
+  o = await wk.overview(oap.id);
+  assert(o.thisWeek.entries.length === 1, "a short session is still recorded");
+  assert(!o.thisWeek.complete, "6 minutes does not complete a 10-minute goal");
+
+  // and one that reaches it does
+  const done12 = await wk.saveLog(oap, { date: today, value: 12 });
+  o = await wk.overview(oap.id);
+  assert(o.thisWeek.complete, "12 minutes completes the week");
+  assert(o.thisWeek.latest.value === 12, "the week shows what was actually done");
+  assert(!!done12.completed_at && done12.completed_at.length > 10, "completion is stamped with the date and time");
+  assert(done12.week_start === monday, "an entry knows which week it belongs to");
+  assert(wk.fmtAmount(oap, 12) === "12 min", "durations read in minutes");
+
+  // a missed week stays missed
+  const threeWeeksBack = LX.D.add(monday, -21);
+  await wk.saveLog(oap, { date: threeWeeksBack, value: 15 });
+  o = await wk.overview(oap.id);
+  const oldWeek = o.history.find(w => w.weekStart === threeWeeksBack);
+  const gapWeek = o.history.find(w => w.weekStart === LX.D.add(monday, -14));
+  assert(oldWeek && oldWeek.complete, "an older completed week is kept");
+  assert(gapWeek && gapWeek.missed, "a finished week with nothing in it reads as missed");
+  assert(o.history.every(w => w.weekStart >= threeWeeksBack), "history starts at the first attempt, not earlier");
+
+  // several times a week
+  const cold = await wk.saveGoal({ name: "Cold shower", target_type: "sessions", target_value: 1, target_unit: "sessions", times_per_week: 3 });
+  await wk.init();
+  await wk.saveLog(wk.goal(cold.id), { date: today });
+  await wk.saveLog(wk.goal(cold.id), { date: LX.D.add(today, 0) });
+  let oc = await wk.overview(cold.id);
+  assert(oc.thisWeek.done === 2 && !oc.thisWeek.complete, "2 of 3 sessions is not complete yet");
+  await wk.saveLog(wk.goal(cold.id), { date: today });
+  oc = await wk.overview(cold.id);
+  assert(oc.thisWeek.complete, "the third session completes the week");
+  assert(wk.targetText(wk.goal(cold.id)) === "3× a week", "a sessions goal reads as a frequency");
+
+  // a custom target keeps its own unit
+  const walk = await wk.saveGoal({ name: "Long walk", target_type: "custom", target_value: 8, target_unit: "km", times_per_week: 1 });
+  await wk.init();
+  assert(wk.fmtAmount(wk.goal(walk.id), 8) === "8 km", "a custom goal keeps the unit you chose");
+
+  // editing an entry updates it in place; deleting recalculates
+  const entriesBefore = (await wk.logs(oap.id)).length;
+  await wk.saveLog(oap, { id: done12.id, date: done12.date, value: 20, created_at: done12.created_at });
+  let logs = await wk.logs(oap.id);
+  assert(logs.length === entriesBefore, "editing an entry does not add another");
+  assert(logs.find(l => l.id === done12.id).value === 20, "the edit took");
+  await wk.deleteLog(done12.id);
+  o = await wk.overview(oap.id);
+  assert(!o.thisWeek.complete, "deleting the qualifying entry reopens the week");
+
+  // changing the target does not rewrite finished weeks
+  await wk.saveGoal(Object.assign({}, wk.goal(oap.id), { target_value: 30 }));
+  o = await wk.overview(oap.id);
+  const stillOld = o.history.find(w => w.weekStart === threeWeeksBack);
+  assert(stillOld.entries.length === 1 && stillOld.entries[0].value === 15,
+    "an old entry keeps the value it was recorded with");
+
+  // nothing leaked into workouts, activities or performance tests
+  assert((await LX.db.all("workouts")).length === workoutsPre, "ticking a goal never writes a workout");
+  assert((await LX.db.all("activities")).length === actsPre, "ticking a goal never writes an activity");
+  assert((await LX.perf.results(null)).length === testsPre, "ticking a goal never writes a test result");
+
+  // the screens
+  LX.screens.health.setTab("weekly");
+  await LX.app.go("health");
+  await new Promise(r => setTimeout(r, 40));
+  let wv = document.getElementById("view").innerHTML;
+  assert(wv.indexOf("Handstand") > -1, "the Weekly tab lists the goals");
+  assert(wv.indexOf("data-wk-tick") > -1, "each goal has a tick");
+  assert(wv.indexOf("NaN") === -1 && wv.indexOf("undefined") === -1, "Weekly tab output is clean");
+
+  await LX.app.go("home");
+  await new Promise(r => setTimeout(r, 40));
+  let hv = document.getElementById("view").innerHTML;
+  assert(hv.indexOf("Weekly goals") > -1, "Home shows the weekly goals card");
+  assert(hv.indexOf("NaN") === -1, "Home output still clean");
+
+  // ticking straight from Home
+  const beforeTick = (await wk.logs(cold.id)).length;
+  document.querySelector('#view [data-wk-tick="' + cold.id + '"]').click();
+  await new Promise(r => setTimeout(r, 80));
+  assert((await wk.logs(cold.id)).length === beforeTick + 1, "a sessions goal records straight from Home");
+
+  // backups carry the new tables, and older backups still restore
+  const b3 = await LX.exporter.buildBackup();
+  assert(b3.data.weekly_goals.length >= 4 && b3.data.weekly_goal_logs.length > 3,
+    "backup includes weekly goals and their entries");
+  const older = JSON.parse(JSON.stringify(b3));
+  delete older.data.weekly_goals;
+  delete older.data.weekly_goal_logs;
+  await LX.exporter.restore(older, "merge");
+  assert(true, "a backup made before weekly goals existed restores without error");
+  await LX.exporter.restore(b3, "replace");
+  await LX.store.init();
+  assert(wk.goals.length >= 4, "weekly goals survive an export and restore");
+  assert((await wk.logs(null)).length > 3, "so do their entries");
+
+  // every screen still renders afterwards
+  for (const key of ["home", "time", "health", "progress", "more"]) {
+    await LX.app.go(key);
+    await new Promise(r => setTimeout(r, 20));
+    const h = document.getElementById("view").innerHTML;
+    assert(h.length > 400 && h.indexOf("NaN") === -1, key + " still renders with weekly goals in place");
+  }
 
   console.log(process.exitCode ? "\nFAILURES ABOVE" : "\nAll checks passed");
   process.exit(process.exitCode || 0);

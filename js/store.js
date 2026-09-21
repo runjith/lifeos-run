@@ -45,6 +45,9 @@
       // strength & performance tests keep their own tables; seeded separately so
       // existing installs pick up the defaults without their data being touched
       return LX.perf ? LX.perf.init() : null;
+    }).then(function () {
+      // weekly goals do the same
+      return LX.weekly ? LX.weekly.init() : null;
     });
   };
 
@@ -177,6 +180,9 @@
   };
 
   /* ---------- food ---------- */
+  /** Create an entry, or update one: passing an existing id edits that same row
+      rather than adding a second one, so correcting a quantity later is an edit
+      and the day's totals simply recalculate. */
   store.addFood = function (f) {
     var rec = {
       id: f.id || LX.uuid(),
@@ -191,19 +197,66 @@
       fat: LX.round(f.fat || 0, 1),
       fiber: LX.round(f.fiber || 0, 1)
     };
+    if (f.created_at) rec.created_at = f.created_at;
     return db.put("food_entries", rec);
   };
-  /** scale a preset from LX.COMMON_FOODS to a quantity the user typed */
+
+  /** Scale a preset from LX.COMMON_FOODS to the quantity actually entered.
+      `size` is the amount the preset's numbers describe, so 4 eggs is four
+      times one egg and 250 g of rice is two and a half times 100 g. */
   store.scaleFood = function (preset, qty) {
-    var factor = qty / preset.size;
+    var q = Number(qty);
+    if (!isFinite(q) || q < 0) q = 0;
+    var factor = preset.size ? q / preset.size : q;
     return {
-      name: preset.name, quantity: qty, unit: preset.unit,
-      calories: LX.round(preset.kcal * factor, 0),
-      protein: LX.round(preset.p * factor, 1),
-      carbs: LX.round(preset.c * factor, 1),
-      fat: LX.round(preset.f * factor, 1),
-      fiber: LX.round(preset.fib * factor, 1)
+      name: preset.name, quantity: q, unit: preset.unit,
+      calories: LX.round((preset.kcal || 0) * factor, 0),
+      protein: LX.round((preset.p || 0) * factor, 1),
+      carbs: LX.round((preset.c || 0) * factor, 1),
+      fat: LX.round((preset.f || 0) * factor, 1),
+      fiber: LX.round((preset.fib || 0) * factor, 1)
     };
+  };
+
+  /** The same thing for a food the app has no preset for: read its values back
+      out of an entry already saved, per single unit, so the entry can be
+      rescaled when its quantity is edited. */
+  store.foodBasisFromEntry = function (entry) {
+    var q = Number(entry.quantity) || 1;
+    return {
+      name: entry.name, unit: entry.unit || "serving", size: 1, serve: q || 1,
+      kcal: (Number(entry.calories) || 0) / q,
+      p: (Number(entry.protein) || 0) / q,
+      c: (Number(entry.carbs) || 0) / q,
+      f: (Number(entry.fat) || 0) / q,
+      fib: (Number(entry.fiber) || 0) / q
+    };
+  };
+
+  /** Foods logged before, newest first, one per name — so the list of foods
+      grows from what is actually eaten instead of only what is built in. */
+  store.recentFoods = function (limit) {
+    return db.all("food_entries").then(function (rows) {
+      rows.sort(function (a, b) {
+        return (a.date + (a.created_at || "")) < (b.date + (b.created_at || "")) ? 1 : -1;
+      });
+      var seen = {}, out = [];
+      rows.forEach(function (r) {
+        var key = String(r.name || "").trim().toLowerCase();
+        if (!key || seen[key]) return;
+        seen[key] = 1;
+        var basis = store.foodBasisFromEntry(r);
+        // step by the normal helping where the app knows one, so tapping Egg
+        // three times still means three eggs rather than three of whatever was
+        // logged last time
+        var preset = LX.COMMON_FOODS.find(function (f) {
+          return f.name.toLowerCase() === key && f.unit === basis.unit;
+        });
+        if (preset) basis.serve = preset.serve;
+        out.push(basis);
+      });
+      return out.slice(0, limit || 8);
+    });
   };
 
   /* ---------- workouts ---------- */

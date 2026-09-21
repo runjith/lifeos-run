@@ -85,6 +85,7 @@ js/ui.js              sheets, toasts, confirms, form fragments
 js/charts.js          SVG ribbon, bars, stacked days, trend lines
 js/forms.js           every logging sheet + the timer
 js/perf.js            strength & performance tests: data, analytics, sheets
+js/weekly.js          weekly goals: data, week-by-week record, sheets
 js/insights.js        gym analytics: main lifts, personal bests, volume
 js/day-sheet.js       the day drill-down + the bars/line preference
 bump.py               raise the version before deploying (see DEPLOY.md)
@@ -106,11 +107,12 @@ breaking the data.
 ### Screen map
 
 - **Home** — today's sleep, exercise, calories, protein; the 24-hour ribbon;
-  category breakdown; everything logged today; quick actions; daily review.
+  category breakdown; everything logged today; weekly goals; quick actions;
+  daily review.
 - **Time** — day / week / month / custom. Timer, manual entry, per-day stacked
   columns, totals with daily averages.
-- **Health** — Workout, Insights, Tests, Food, Sleep, Weight, Body. Each with its
-  own log, history and charts.
+- **Health** — Workout, Insights, Tests, Weekly, Food, Sleep, Weight, Body. Each
+  with its own log, history and charts.
 - **Progress** — 7 / 30 / 90 / 365 days across Time, Body, Fitness, Nutrition.
 - **More** — account and sync, JSON import, data and backup, goals, categories,
   appearance, schema reference.
@@ -265,6 +267,56 @@ existed restore normally — the missing sections are simply treated as empty.
 
 ---
 
+---
+
+## 4c. Weekly goals
+
+**Health → Weekly.** Skills and habits you want to attempt every week rather
+than measure in a workout: ten minutes of handstand practice, a one-arm push-up
+session, three cold showers. They are separate from both workouts and
+performance tests — ticking one off never writes a workout or a test result, and
+neither of those ever ticks one off.
+
+Two examples are there from the start (one-arm push-up practice and handstand
+practice, ten minutes once a week). Both are editable, and you can add as many
+of your own as you like.
+
+**Target types**
+
+| type | you set | one attempt counts when |
+|---|---|---|
+| Duration | minutes per attempt | you record at least that many minutes |
+| Reps | reps per attempt | you record at least that many reps |
+| Sessions | nothing to reach | every attempt counts |
+| Custom | a number and your own unit | you record at least that number |
+
+Every goal also carries **times per week**. The week is complete once that many
+qualifying attempts are in it.
+
+**Weeks run Monday to Sunday.** While the week is open a goal shows as *not
+completed*; once the target is met it shows as completed, with what you actually
+did and when. A week that ends without the target being reached is recorded as
+**missed** rather than quietly forgotten, so the history is honest.
+
+**A shorter attempt is still recorded.** Six minutes against a ten-minute target
+is saved and shown — it just does not tick the week off. Nothing is thrown away
+for falling short.
+
+**History is never rewritten.** Each entry stores the week it belongs to and the
+value it was recorded with, so raising a target from ten minutes to thirty does
+not turn last month's completed weeks into failures.
+
+Per goal you get this week's progress, the run of consecutive completed weeks,
+how many of the finished weeks were completed, every attempt (tap one to edit or
+delete it) and the week-by-week record. **On Home** a compact "Weekly goals" card
+shows what is still pending, and you can tick a goal off from there.
+
+**Data model.** Two tables: `weekly_goals` (name, target type, target, times per
+week) and `weekly_goal_logs` (goal, date, the Monday of its week, value, notes,
+and the time it was ticked off). Both sync and both appear in backups. Backups
+made before this feature existed restore normally.
+
+
 ## 5. Import a day as JSON
 
 **More → Import JSON.** Paste, tap Validate, read the preview, tap Import.
@@ -333,6 +385,14 @@ that file, not extracting anything from this app.
   depends on what you were training for, so the app does not colour it.
 - Days with no food logged show as zero in charts, and the app says so under the
   chart rather than letting a zero look like a fast.
+- Food is logged in the unit you actually measure it in: eggs and bananas in
+  pieces, rice and chicken in grams, milk in millilitres. Tapping a food adds one
+  normal helping, and tapping it again adds another — three taps on Egg means
+  three eggs. Changing the quantity, by typing or with the − and + buttons,
+  recalculates the calories and macros; typing over a value yourself stops the
+  app recalculating and your own numbers stand. Tap any entry in Health → Food to
+  correct it afterwards. Foods you have logged before appear at the top of the
+  search with the values you saved, so the list grows from what you actually eat.
 - Weight charts do not start at zero (small changes would be invisible), and the
   chart says to read the direction rather than the slope.
 - No stock, finance, or social features, by design.
@@ -382,4 +442,4 @@ bar floats above the tab bar on every screen and carries Pause/Resume, Delete
 (with a confirmation) and Save.
 
 **Changed a file but the app looks the same.** The service worker cached the old
-shell. Bump `CACHE` in `sw.js` (`lifeos-v1` → `lifeos-v2`) and reload twice. 
+shell. Bump `CACHE` in `sw.js` (`lifeos-v1` → `lifeos-v2`) and reload twice.

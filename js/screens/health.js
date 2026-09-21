@@ -8,6 +8,7 @@
     { key: "workout", name: "Workout" },
     { key: "insights", name: "Insights" },
     { key: "tests", name: "Tests" },
+    { key: "weekly", name: "Weekly" },
     { key: "nutrition", name: "Food" },
     { key: "sleep", name: "Sleep" },
     { key: "weight", name: "Weight" },
@@ -30,8 +31,8 @@
       }).join("") + "</div>";
 
       var fn = {
-        workout: workoutView, insights: insightsView, tests: testsView, nutrition: nutritionView,
-        sleep: sleepView, weight: weightView, body: bodyView
+        workout: workoutView, insights: insightsView, tests: testsView, weekly: weeklyView,
+        nutrition: nutritionView, sleep: sleepView, weight: weightView, body: bodyView
       }[tab];
       return fn(el, head).then(function () {
         LX.on(el, "click", "[data-tab]", function (e, t) { tab = t.dataset.tab; LX.app.refresh(); });
@@ -169,6 +170,11 @@
     return LX.perf.renderSection(el, head);
   }
 
+  /* ---------------- Weekly goals ---------------- */
+  function weeklyView(el, head) {
+    return LX.weekly.renderSection(el, head);
+  }
+
   /* ---------------- Nutrition ---------------- */
   function nutritionView(el, head) {
     var today = LX.D.today();
@@ -208,9 +214,12 @@
               '<h2 style="font:var(--t-h2)">' + m + "</h2><span class='small muted'>" +
               LX.num(LX.sum(items, function (f) { return f.calories; })) + " kcal</span></div><div class='list'>" +
               items.map(function (f) {
-                return '<div class="list-row"><span class="grow"><span class="primary">' + LX.esc(f.name) + "</span><br>" +
+                return '<div class="list-row">' +
+                  '<button class="grow" data-edit-food="' + f.id + '" style="background:none;border:0;padding:0;' +
+                  'text-align:left;min-width:0;color:inherit;font:inherit">' +
+                  '<span class="primary">' + LX.esc(f.name) + "</span><br>" +
                   '<span class="secondary">' + LX.num(f.quantity, f.quantity % 1 ? 1 : 0) + " " + LX.esc(f.unit) +
-                  " · " + LX.num(f.protein, 1) + "g protein</span></span>" +
+                  " · " + LX.num(f.protein, 1) + "g protein</span></button>" +
                   '<span class="value">' + LX.num(f.calories) + "</span>" +
                   '<button class="icon-btn" data-del-food="' + f.id + '" aria-label="Delete">' + LX.icon("trash") + "</button></div>";
               }).join("") + "</div></div>";
@@ -218,9 +227,15 @@
         } else {
           html += ui.empty("Nothing logged today", "Log a meal, or paste a day from your notes under More → Import JSON.");
         }
+        if (s.foods.length) html += '<p class="hint">Tap any entry to correct it — change 1 egg to 4 and the calories and macros follow.</p>';
 
         el.innerHTML = html;
         LX.on(el, "click", "[data-add-food]", function () { forms.logFood({ onDone: LX.app.refresh }); });
+        LX.on(el, "click", "[data-edit-food]", function (e, t) {
+          db.get("food_entries", t.dataset.editFood).then(function (rec) {
+            if (rec) forms.logFood({ entry: rec, onDone: LX.app.refresh });
+          });
+        });
         LX.on(el, "click", "[data-del-food]", function (e, t) {
           db.remove("food_entries", t.dataset.delFood).then(function () { ui.toast("Entry deleted"); LX.app.refresh(); });
         });

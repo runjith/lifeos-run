@@ -233,6 +233,43 @@ create table if not exists public.strength_results (
   deleted_at    timestamptz
 );
 
+-- ----------------------------------------------------------- weekly goals
+-- Skills and habits attempted week by week, kept apart from workouts and from
+-- performance tests. Each entry stores the Monday of the week it belongs to, so
+-- a finished week keeps its verdict even if the goal is edited later.
+create table if not exists public.weekly_goals (
+  id             uuid primary key,
+  user_id        uuid not null references auth.users(id) on delete cascade,
+  slug           text,
+  name           text not null,
+  target_type    text not null default 'duration',  -- duration | reps | sessions | custom
+  target_value   numeric,
+  target_unit    text,
+  times_per_week integer default 1,
+  notes          text,
+  is_default     integer default 0,
+  sort           integer default 0,
+  active         integer default 1,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now(),
+  deleted_at     timestamptz
+);
+
+create table if not exists public.weekly_goal_logs (
+  id            uuid primary key,
+  user_id       uuid not null references auth.users(id) on delete cascade,
+  goal_id       uuid not null references public.weekly_goals(id) on delete cascade,
+  date          date not null,
+  week_start    date not null,                      -- the Monday of that week
+  value         numeric,
+  unit          text,
+  notes         text,
+  completed_at  timestamptz,                        -- when it was ticked off
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  deleted_at    timestamptz
+);
+
 -- ------------------------------------------------------------- indexes
 create index if not exists activities_user_date_idx        on public.activities (user_id, date);
 create index if not exists activities_updated_idx          on public.activities (user_id, updated_at);
@@ -249,6 +286,9 @@ create index if not exists reviews_user_date_idx           on public.daily_revie
 create index if not exists strength_results_series_idx    on public.strength_results (user_id, test_id, config_key, date);
 create index if not exists strength_results_updated_idx   on public.strength_results (user_id, updated_at);
 create index if not exists strength_tests_updated_idx     on public.strength_tests (user_id, updated_at);
+create index if not exists weekly_goals_updated_idx        on public.weekly_goals (user_id, updated_at);
+create index if not exists weekly_logs_week_idx            on public.weekly_goal_logs (user_id, goal_id, week_start);
+create index if not exists weekly_logs_updated_idx         on public.weekly_goal_logs (user_id, updated_at);
 
 -- --------------------------------------------------- row level security
 -- Every table: you can only see and change rows where user_id is your own id.
@@ -258,7 +298,8 @@ begin
   foreach t in array array[
     'profiles','categories','activities','exercises','workouts','workout_exercises',
     'workout_sets','food_entries','sleep_records','weight_records','body_measurements',
-    'goals','daily_reviews','strength_tests','strength_results'
+    'goals','daily_reviews','strength_tests','strength_results',
+    'weekly_goals','weekly_goal_logs'
   ]
   loop
     execute format('alter table public.%I enable row level security', t);
