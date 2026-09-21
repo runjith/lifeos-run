@@ -11,7 +11,7 @@
 window.LX = window.LX || {};
 
 /* Set by bump.py — shown under More -> About and used to name the offline cache. */
-window.LX.VERSION = "1.2.0";
+window.LX.VERSION = "1.3.1";
 
 window.LX.CONFIG = {
   SUPABASE_URL: "https://yutwpnqvqhjmvgbsyigy.supabase.co",
