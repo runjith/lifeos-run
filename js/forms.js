@@ -24,15 +24,22 @@
     opts = opts || {};
     var date = opts.date || LX.D.today();
     var presets = [15, 30, 45, 60, 90, 120];
+    function isSleepCat(id) {
+      var c = store.cat(id);
+      return !!c && (c.bucket === "sleep" || c.slug === "sleep");
+    }
+    function chipsHTML(catId) {
+      return (isSleepCat(catId) ? LX.SLEEP_PRESETS : presets).map(function (m) {
+        return '<button type="button" class="chip" data-mins="' + m + '">' + LX.fmtDur(m) + "</button>";
+      }).join("");
+    }
+    var firstCat = opts.category_id || store.categories[0].id;
     ui.sheet({
       title: "Log activity",
       body:
-        ui.field("Category", ui.select("category_id", catOptions(), opts.category_id || store.categories[0].id)) +
+        ui.field("Category", ui.select("category_id", catOptions(), firstCat)) +
         '<div class="field"><span class="label">Duration</span>' +
-        '<div class="chips" style="margin:0 0 10px;padding-inline:0">' +
-        presets.map(function (m) {
-          return '<button type="button" class="chip" data-mins="' + m + '">' + LX.fmtDur(m) + "</button>";
-        }).join("") + "</div>" +
+        '<div class="chips" data-dur-chips style="margin:0 0 10px;padding-inline:0">' + chipsHTML(firstCat) + "</div>" +
         '<div class="stepper"><button type="button" data-step="-5">−</button>' +
         ui.input("duration_minutes", { type: "number", value: opts.minutes || 30, inputmode: "numeric", min: 0 }) +
         '<button type="button" data-step="5">+</button></div>' +
@@ -46,6 +53,10 @@
       footer: '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Save activity</button>',
       onMount: function (root, close) {
         var input = root.querySelector('[name="duration_minutes"]');
+        // Sleep gets 6h–8h shortcuts; everything else keeps 15 minutes to 2 hours
+        root.querySelector('[name="category_id"]').addEventListener("change", function (e) {
+          root.querySelector("[data-dur-chips]").innerHTML = chipsHTML(e.target.value);
+        });
         LX.on(root, "click", "[data-mins]", function (e, t) {
           input.value = t.dataset.mins;
           LX.$$("[data-mins]", root).forEach(function (b) { b.classList.remove("is-on"); });
@@ -171,6 +182,7 @@
         '<div class="segmented" data-meal-seg>' + meals.map(function (m) {
           return '<button type="button" data-meal="' + m + '" aria-pressed="' + (m === guessMeal) + '">' + m + "</button>";
         }).join("") + "</div>" +
+        (entry ? "" : '<div class="chips" data-meal-chips style="margin:0;padding-inline:0"></div>') +
         ui.field("Search foods", '<input class="input" data-food-search placeholder="Egg, chicken, rice…" />') +
         '<div data-food-results class="list card flush" style="max-height:230px;overflow:auto"></div>' +
         '<div class="section-title" style="font-size:.95rem">' + (entry ? "This entry" : "Or enter it yourself") + "</div>" +
@@ -200,9 +212,47 @@
         '<button class="btn btn-primary" data-save>' + (entry ? "Save changes" : "Save food") + "</button>",
       onMount: function (root, close) {
         var meal = guessMeal;
+        var templates = [];
         LX.on(root, "click", "[data-meal]", function (e, t) {
           meal = t.dataset.meal;
           LX.$$("[data-meal]", root).forEach(function (b) { b.setAttribute("aria-pressed", b === t); });
+          renderMealChips();
+        });
+
+        /* One tap for a whole meal: yesterday's same meal, or a saved one. */
+        function renderMealChips() {
+          var box = root.querySelector("[data-meal-chips]");
+          if (!box || !LX.meals) return;
+          var day = root.querySelector('[name="date"]').value || date;
+          LX.meals.entriesFor(LX.D.add(day, -1), meal).then(function (yest) {
+            var html = yest.length
+              ? '<button type="button" class="chip" data-same-yesterday>' + LX.icon("repeat") + " Same " +
+                LX.esc(meal.toLowerCase()) + " as yesterday</button>" : "";
+            html += templates.map(function (m, i) {
+              return '<button type="button" class="chip" data-template="' + i + '">' + LX.esc(m.name) + "</button>";
+            }).join("");
+            box.innerHTML = html;
+            box.style.display = html ? "" : "none";
+            box._yesterday = yest;
+          });
+        }
+        if (LX.meals && !entry) {
+          LX.meals.all().then(function (rows) { templates = rows; renderMealChips(); });
+        }
+        function logMany(items, label) {
+          var day = root.querySelector('[name="date"]').value || date;
+          LX.meals.log(items, day, meal).then(function (n) {
+            close();
+            done(label + " · " + n + (n === 1 ? " food" : " foods") + " logged", opts.onDone);
+          });
+        }
+        LX.on(root, "click", "[data-same-yesterday]", function () {
+          var box = root.querySelector("[data-meal-chips]");
+          logMany(box._yesterday || [], "Same as yesterday");
+        });
+        LX.on(root, "click", "[data-template]", function (e, t) {
+          var m = templates[Number(t.dataset.template)];
+          if (m) logMany(m.items || [], m.name);
         });
 
         var results = root.querySelector("[data-food-results]");
@@ -506,6 +556,10 @@
         ui.field("Bedtime", ui.input("bedtime", { type: "time", value: opts.bedtime || "23:00" })) +
         ui.field("Wake time", ui.input("wake_time", { type: "time", value: opts.wake_time || "06:30" })) +
         "</div>" +
+        '<div class="field"><span class="label">Or pick how long you slept</span>' +
+        '<div class="chips" style="margin:0;padding-inline:0">' + LX.SLEEP_PRESETS.map(function (m) {
+          return '<button type="button" class="chip" data-sleep-mins="' + m + '">' + LX.fmtDur(m) + "</button>";
+        }).join("") + '</div><span class="hint">Keeps your wake time and works the bedtime back from it.</span></div>' +
         '<div class="banner ok" data-dur>' + LX.icon("bed") + "<span>7h 30m</span></div>" +
         ui.field("How did it feel?", '<div class="segmented" data-quality>' +
           [1, 2, 3, 4, 5].map(function (q) {
@@ -522,7 +576,17 @@
         }
         refresh();
         LX.$$('[name="bedtime"], [name="wake_time"]', root).forEach(function (el) {
-          el.addEventListener("change", refresh);
+          el.addEventListener("change", function () {
+            LX.$$("[data-sleep-mins]", root).forEach(function (b) { b.classList.remove("is-on"); });
+            refresh();
+          });
+        });
+        LX.on(root, "click", "[data-sleep-mins]", function (e, t) {
+          var wake = root.querySelector('[name="wake_time"]').value || "06:30";
+          var bed = LX.D.minsOf(wake) - Number(t.dataset.sleepMins);
+          root.querySelector('[name="bedtime"]').value = LX.D.hhmm(((bed % 1440) + 1440) % 1440);
+          LX.$$("[data-sleep-mins]", root).forEach(function (b) { b.classList.toggle("is-on", b === t); });
+          refresh();
         });
         LX.on(root, "click", "[data-q]", function (e, t) {
           quality = Number(t.dataset.q);
@@ -606,8 +670,13 @@
   forms.dailyReview = function (opts) {
     opts = opts || {};
     var date = opts.date || LX.D.today();
-    Promise.all([LX.db.byDate("daily_reviews", date), store.daySummary(date)]).then(function (r) {
-      var rec = r[0][0] || {}, s = r[1];
+    Promise.all([
+      LX.db.byDate("daily_reviews", date), store.daySummary(date),
+      LX.tasks ? LX.tasks.finishedOn(date) : []
+    ]).then(function (r) {
+      var rec = r[0][0] || {}, s = r[1], doneTasks = r[2];
+      // "What actually got done?" starts from the tasks you ticked off that day
+      var completedText = rec.completed || doneTasks.map(function (t) { return "\u2022 " + t.title; }).join("\n");
       ui.sheet({
         title: "Daily review · " + LX.D.relative(date),
         body:
@@ -619,20 +688,42 @@
           kv("Calories", s.nutrition.calories ? LX.num(s.nutrition.calories) + " kcal" : "not logged") +
           kv("Untracked", LX.fmtDur(s.untracked)) +
           "</div>" +
+          scale("Mood", "mood", rec.mood) + scale("Energy", "energy", rec.energy) +
           ui.field("What did you plan to do?", ui.textarea("planned", rec.planned, "Three things that mattered today")) +
-          ui.field("What actually got done?", ui.textarea("completed", rec.completed, "")) +
+          ui.field("What actually got done?", ui.textarea("completed", completedText, ""),
+            doneTasks.length && !rec.completed ? "Filled in from the " + doneTasks.length + " tasks you finished — edit freely." : "") +
           ui.field("Reflection", ui.textarea("journal", rec.journal, "One honest paragraph is enough")),
         footer: '<button class="btn" data-close>Close</button><button class="btn btn-primary" data-save>Save review</button>',
         onMount: function (root, close) {
+          var picked = { mood: rec.mood || null, energy: rec.energy || null };
+          LX.on(root, "click", "[data-scale]", function (e, t) {
+            var k = t.dataset.scale;
+            picked[k] = Number(t.dataset.v);
+            LX.$$('[data-scale="' + k + '"]', root).forEach(function (b) { b.setAttribute("aria-pressed", b === t); });
+          });
           root.querySelector("[data-save]").addEventListener("click", function () {
             var v = ui.values(root);
-            var out = Object.assign({ id: rec.id || LX.uuid(), date: date }, rec, v);
+            var out = Object.assign({ id: rec.id || LX.uuid(), date: date }, rec, v, picked);
             LX.db.put("daily_reviews", out).then(function () { close(); done("Review saved", opts.onDone); });
           });
         }
       });
     });
     function kv(k, v2) { return '<div class="kv"><span class="muted">' + k + "</span><b>" + LX.esc(v2) + "</b></div>"; }
+    function scale(label, key, cur) {
+      return '<div class="field"><span class="label">' + label + ' <span class="muted small">1 low · 5 high</span></span>' +
+        '<div class="segmented">' + [1, 2, 3, 4, 5].map(function (n) {
+          return '<button type="button" data-scale="' + key + '" data-v="' + n + '" aria-pressed="' + (cur === n) + '">' + n + "</button>";
+        }).join("") + "</div></div>";
+    }
+  };
+
+  /** Save just mood or energy for a day, straight from Home. */
+  forms.saveCheckin = function (date, patch) {
+    return LX.db.byDate("daily_reviews", date).then(function (rows) {
+      var rec = rows[0] || { id: LX.uuid(), date: date };
+      return LX.db.put("daily_reviews", Object.assign({}, rec, patch));
+    });
   };
 
   LX.forms = forms;

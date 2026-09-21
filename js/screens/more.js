@@ -22,13 +22,14 @@
           group("Setup", [
             row("goals", "target", "Goals", "Your own targets, not automatic ones"),
             row("categories", "clock", "Time categories", store.categories.length + " categories"),
-            row("appearance", "sun", "Appearance", themeLabel())
+            row("appearance", "sun", "Appearance", themeLabel()),
+            row("home", "grid", "Home screen", "Choose and order what Home shows")
           ]) +
           group("Reference", [
-            row("schema", "book", "JSON schema", "The exact shape LifeOS accepts"),
-            row("about", "user", "About LifeOS", "Version and storage details")
+            row("schema", "book", "JSON schema", "The exact shape RunOS accepts"),
+            row("about", "user", "About & health check", "Version, sync, backups and storage")
           ]) +
-          '<p class="hint" style="text-align:center">LifeOS keeps your data on this device first. Nothing leaves it unless you connect an account.</p>';
+          '<p class="hint" style="text-align:center">RunOS keeps your data on this device first. Nothing leaves it unless you connect an account.</p>';
 
         LX.on(el, "click", "[data-more]", function (e, t) { open(t.dataset.more); });
       });
@@ -37,7 +38,9 @@
 
   function themeLabel() {
     var t = store.settings.theme;
-    return t === "system" ? "Following your phone" : (t === "dark" ? "Dark" : "Light");
+    var mode = t === "system" ? "Automatic" : t === "black" ? "Pure black" : t === "dark" ? "Dark" : "Light";
+    var th = LX.THEMES.find(function (x) { return x.key === (store.settings.accent || "teal"); }) || LX.THEMES[0];
+    return mode + " · " + th.name + " · " + (store.settings.vivid === false ? "Soft" : "Vivid") + " colours";
   }
 
   function accountCard(user) {
@@ -74,7 +77,7 @@
   function open(key) {
     var fns = {
       auth: authSheet, signout: signOut, sync: syncNow, import: importSheet, backup: backupSheet,
-      goals: goalsSheet, categories: categoriesSheet, appearance: appearanceSheet,
+      goals: goalsSheet, categories: categoriesSheet, appearance: appearanceSheet, home: homeCardsSheet,
       schema: schemaSheet, about: aboutSheet,
       review: function () { LX.forms.dailyReview({ onDone: LX.app.refresh }); }
     };
@@ -175,7 +178,7 @@
     ui.sheet({
       title: "Import JSON",
       body:
-        '<p class="small muted" style="margin:0">Paste a day in the LifeOS format. Nothing is saved until you see the preview and tap Import.</p>' +
+        '<p class="small muted" style="margin:0">Paste a day in the RunOS format. Nothing is saved until you see the preview and tap Import.</p>' +
         '<textarea class="textarea" data-json style="min-height:170px;font-family:ui-monospace,Menlo,monospace;font-size:13px" placeholder=\'{"date":"' + LX.D.today() + '", "food":[…]}\'></textarea>' +
         '<div class="row" style="gap:10px"><button class="btn grow btn-sm" data-sample>Load sample</button>' +
         '<button class="btn grow btn-sm" data-paste>Paste from clipboard</button></div>' +
@@ -242,7 +245,8 @@
 
   /* ---------------- backup ---------------- */
   function backupSheet() {
-    exporter.counts().then(function (counts) {
+    Promise.all([exporter.counts(), exporter.daysSinceBackup()]).then(function (r0) {
+      var counts = r0[0], days = r0[1];
       ui.sheet({
         title: "Data & backup",
         body:
@@ -250,7 +254,12 @@
             .map(function (k) {
               return '<div class="kv"><span class="muted">' + k.replace(/_/g, " ") + "</span><b>" + counts[k] + "</b></div>";
             }).join("") + "</div>" +
-          '<button class="btn btn-primary btn-block" data-full>' + LX.icon("download") + " Download full backup (JSON)</button>" +
+          '<div class="banner' + (days === null || days > 7 ? "" : " ok") + '">' + LX.icon(days === null || days > 7 ? "alert" : "check") +
+          "<span>" + (days === null ? "No backup has left this device yet." : "Last backup " +
+            (days === 0 ? "today" : days === 1 ? "yesterday" : days + " days ago") + ".") + "</span></div>" +
+          '<button class="btn btn-primary btn-block" data-share disabled>' + LX.icon("share") + " Share backup — Drive, Files, email\u2026</button>" +
+          '<p class="hint" style="margin:0">Opens your phone\u2019s share sheet. Pick Google Drive (or Save to Files \u2192 Google Drive).</p>' +
+          '<button class="btn btn-block" data-full>' + LX.icon("download") + " Download full backup (JSON)</button>" +
           '<button class="btn btn-block" data-copy>Copy backup to clipboard</button>' +
           '<button class="btn btn-block" data-csv>' + LX.icon("download") + " Download CSV files</button>" +
           '<div class="section-title" style="font-size:1rem;margin-top:8px">Restore</div>' +
@@ -262,24 +271,36 @@
           '<button class="btn btn-danger btn-block" data-wipe>' + LX.icon("trash") + " Delete all local data</button>",
         footer: '<button class="btn btn-block" data-close>Close</button>',
         onMount: function (root, close) {
+          // the file is built now, so the share sheet can open the instant you tap
+          var prepared = null, shareBtn = root.querySelector("[data-share]");
+          exporter.prepareShare().then(function (pf) { prepared = pf; shareBtn.disabled = false; });
+          shareBtn.addEventListener("click", function () {
+            if (!prepared) return;
+            exporter.share(prepared).then(function (res) {
+              if (res === "shared") ui.toast("Backup shared");
+              else if (res === "downloaded") ui.toast("Backup saved to your downloads");
+              else if (res === "failed") ui.toast("Could not share or download here — use copy instead", "danger");
+              if (res === "shared" || res === "downloaded") { close(); LX.app.refresh(); }
+            });
+          });
           root.querySelector("[data-full]").addEventListener("click", function () {
             exporter.buildBackup().then(function (b) {
-              var name = "lifeos-backup-" + LX.D.today() + ".json";
-              var ok = exporter.download(name, JSON.stringify(b, null, 2));
+              var ok = exporter.download(exporter.backupName(), JSON.stringify(b, null, 2));
+              if (ok) exporter.markBackup();
               ui.toast(ok ? "Backup downloaded" : "Download blocked here — use copy instead", ok ? "" : "danger");
             });
           });
           root.querySelector("[data-copy]").addEventListener("click", function () {
             exporter.buildBackup().then(function (b) {
               return exporter.copy(JSON.stringify(b));
-            }).then(function () { ui.toast("Backup copied — paste it somewhere safe"); })
+            }).then(function () { exporter.markBackup(); ui.toast("Backup copied — paste it somewhere safe"); })
               .catch(function () { ui.toast("Could not copy", "danger"); });
           });
           root.querySelector("[data-csv]").addEventListener("click", function () {
             exporter.csvFiles().then(function (files) {
               if (!files.length) return ui.toast("Nothing to export yet", "danger");
               files.forEach(function (f, i) {
-                setTimeout(function () { exporter.download("lifeos-" + f.name, f.text, "text/csv"); }, i * 350);
+                setTimeout(function () { exporter.download("runos-" + f.name, f.text, "text/csv"); }, i * 350);
               });
               ui.toast(files.length + " CSV files downloading");
             });
@@ -331,7 +352,7 @@
     });
     ui.sheet({
       title: "Goals",
-      body: '<p class="small muted" style="margin:0">These are your targets. LifeOS never sets them for you and never judges them.</p>' +
+      body: '<p class="small muted" style="margin:0">These are your targets. RunOS never sets them for you and never judges them.</p>' +
         list.map(function (g) {
           return ui.field(g.name + " (" + g.unit + ")",
             '<input class="input" type="number" inputmode="decimal" name="' + g.key + '" value="' + LX.esc(g.target) + '" />');
@@ -390,11 +411,23 @@
   function appearanceSheet() {
     ui.sheet({
       title: "Appearance",
-      body: '<div class="segmented" data-theme-seg>' +
-        [["system", "Automatic"], ["light", "Light"], ["dark", "Dark"]].map(function (t) {
+      body: '<div class="section-title" style="font-size:1rem;margin:0">Mode</div>' +
+        '<div class="segmented" data-theme-seg>' +
+        [["system", "Auto"], ["light", "Light"], ["dark", "Dark"], ["black", "Black"]].map(function (t) {
           return '<button data-theme="' + t[0] + '" aria-pressed="' + (store.settings.theme === t[0]) + '">' + t[1] + "</button>";
         }).join("") + "</div>" +
-        '<p class="hint">Automatic follows your phone\u2019s light and dark setting.</p>' +
+        '<p class="hint">Auto follows your phone\u2019s light and dark setting. Black is dark mode on pure black, easiest on an iPhone screen at night.</p>' +
+        '<div class="section-title" style="font-size:1rem;margin:0">Colour theme</div>' +
+        '<div class="theme-swatches">' + LX.THEMES.map(function (t) {
+          return '<button data-accent="' + t.key + '" aria-pressed="' + ((store.settings.accent || "teal") === t.key) + '">' +
+            '<span class="dot" style="background:' + t.swatch + '"></span>' + t.name + "</button>";
+        }).join("") + "</div>" +
+        '<div class="section-title" style="font-size:1rem;margin:0">Colour strength</div>' +
+        '<div class="segmented">' + [["vivid", "Vivid"], ["soft", "Soft"]].map(function (t) {
+          var on = (store.settings.vivid !== false) === (t[0] === "vivid");
+          return '<button data-vivid="' + t[0] + '" aria-pressed="' + on + '">' + t[1] + "</button>";
+        }).join("") + "</div>" +
+        '<p class="hint">Vivid makes the category colours, charts and progress bars stronger. Soft is the original calmer look.</p>' +
         ui.field("Weight unit", ui.select("weight", ["kg", "lb"], store.settings.units.weight)) +
         ui.field("Measurement unit", ui.select("length", ["cm", "in"], store.settings.units.length)),
       footer: '<button class="btn btn-block" data-close>Done</button>',
@@ -403,11 +436,64 @@
           LX.$$("[data-theme]", root).forEach(function (b) { b.setAttribute("aria-pressed", b === t); });
           store.saveSettings({ theme: t.dataset.theme }).then(function () { LX.app.applyTheme(); LX.app.refresh(); });
         });
+        LX.on(root, "click", "[data-accent]", function (e, t) {
+          LX.$$("[data-accent]", root).forEach(function (b) { b.setAttribute("aria-pressed", b === t); });
+          store.saveSettings({ accent: t.dataset.accent }).then(function () { LX.app.applyTheme(); LX.app.refresh(); });
+        });
+        LX.on(root, "click", "[data-vivid]", function (e, t) {
+          LX.$$("[data-vivid]", root).forEach(function (b) { b.setAttribute("aria-pressed", b === t); });
+          store.saveSettings({ vivid: t.dataset.vivid === "vivid" }).then(function () { LX.app.applyTheme(); LX.app.refresh(); });
+        });
         LX.on(root, "change", "select", function () {
           var v = ui.values(root);
           store.saveSettings({ units: { weight: v.weight, length: v.length } });
         });
       }
+    });
+  }
+
+  /* ---------------- Home screen layout ---------------- */
+  function homeCardsSheet() {
+    var cards = LX.screens.home.cardOrder();
+    function render(root) {
+      root.querySelector("[data-cards]").innerHTML = cards.map(function (c, i) {
+        var def = LX.HOME_CARDS.find(function (d) { return d.key === c.key; });
+        return '<div class="list-row">' +
+          '<button class="task-check' + (c.on ? " is-on" : "") + '" data-card-toggle="' + i + '" aria-label="Show or hide">' +
+          LX.icon("check") + "</button>" +
+          '<span class="grow"><span class="primary">' + LX.esc(def.name) + '</span><br><span class="secondary">' +
+          LX.esc(def.hint) + "</span></span>" +
+          '<button class="icon-btn" data-card-up="' + i + '" aria-label="Move up"' + (i === 0 ? " disabled" : "") + ">" + LX.icon("up") + "</button>" +
+          '<button class="icon-btn" data-card-down="' + i + '" aria-label="Move down"' + (i === cards.length - 1 ? " disabled" : "") + ">" + LX.icon("down") + "</button></div>";
+      }).join("");
+    }
+    function save() {
+      return store.saveSettings({ home_cards: cards.map(function (c) { return { key: c.key, on: c.on }; }) });
+    }
+    ui.sheet({
+      title: "Home screen",
+      body: '<p class="small muted" style="margin:0">Tick what Home shows and move things into the order you want.</p>' +
+        '<div class="card flush"><div class="list" data-cards></div></div>',
+      footer: '<button class="btn" data-cards-reset>Reset</button><button class="btn btn-primary" data-close>Done</button>',
+      onMount: function (root) {
+        render(root);
+        LX.on(root, "click", "[data-card-toggle]", function (e, t) {
+          var c = cards[Number(t.dataset.cardToggle)]; c.on = !c.on; save(); render(root);
+        });
+        LX.on(root, "click", "[data-card-up]", function (e, t) {
+          var i = Number(t.dataset.cardUp); if (i < 1) return;
+          cards.splice(i - 1, 0, cards.splice(i, 1)[0]); save(); render(root);
+        });
+        LX.on(root, "click", "[data-card-down]", function (e, t) {
+          var i = Number(t.dataset.cardDown); if (i >= cards.length - 1) return;
+          cards.splice(i + 1, 0, cards.splice(i, 1)[0]); save(); render(root);
+        });
+        root.querySelector("[data-cards-reset]").addEventListener("click", function () {
+          cards = LX.HOME_CARDS.map(function (d) { return { key: d.key, on: true }; });
+          store.saveSettings({ home_cards: null }); render(root);
+        });
+      },
+      onClose: function () { LX.app.refresh(); }
     });
   }
 
@@ -443,9 +529,13 @@
   }
 
   function aboutSheet() {
-    Promise.all([db.getKV("last_sync", null), db.outboxCount()]).then(function (r) {
+    var est = navigator.storage && navigator.storage.estimate ? navigator.storage.estimate().catch(function () { return null; }) : Promise.resolve(null);
+    var kept = navigator.storage && navigator.storage.persisted ? navigator.storage.persisted().catch(function () { return null; }) : Promise.resolve(null);
+    Promise.all([db.getKV("last_sync", null), db.outboxCount(), exporter.daysSinceBackup(), est, kept, exporter.counts()]).then(function (r) {
+      var total = Object.keys(r[5]).reduce(function (a, k) { return a + r[5][k]; }, 0);
+      var used = r[3] && r[3].usage ? (r[3].usage / 1048576).toFixed(1) + " MB used" : "unknown";
       ui.sheet({
-        title: "About LifeOS",
+        title: "About RunOS",
         body: '<div class="card" style="padding:14px">' +
           rowKV("Version", LX.VERSION || "1.0") +
           rowKV("Storage", db.storageMode() === "browser-storage"
@@ -454,7 +544,13 @@
           rowKV("Cloud", cloud.configured() ? "Supabase configured" : "Not configured — local only") +
           rowKV("Last sync", r[0] ? new Date(r[0]).toLocaleString() : "never") +
           rowKV("Waiting to sync", r[1] + " changes") +
+          rowKV("Last backup", r[2] === null ? "never — share one from Data & backup" : r[2] === 0 ? "today" : r[2] + " days ago") +
+          rowKV("Kept permanently", r[4] === true ? "yes — the browser will not clear it" : r[4] === false ? "not confirmed by this browser" : "unknown here") +
+          rowKV("Space used", used) +
+          rowKV("Records", LX.num(total)) +
           "</div>" +
+          '<p class="small muted">If something ever looks wrong, this screen tells you which part: sync (last sync and waiting changes), ' +
+          "backups (last backup) or the device (storage).</p>" +
           '<p class="small muted">Your data belongs to you. A full JSON backup contains every record and can rebuild the app anywhere.</p>',
         footer: '<button class="btn btn-block" data-close>Close</button>'
       });

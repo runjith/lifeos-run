@@ -1,4 +1,4 @@
-/* LifeOS — export and restore. The user owns the data: everything in the local
+/* RunOS — export and restore. The user owns the data: everything in the local
    database can leave in one file, and that same file can rebuild the app. */
 (function (LX) {
   "use strict";
@@ -16,7 +16,7 @@
       var data = {};
       LX.STORES.forEach(function (s, i) { data[s] = r[0][i]; });
       return {
-        app: "LifeOS",
+        app: "RunOS",          // restore accepts files from before the rename too
         backup_version: exporter.BACKUP_VERSION,
         exported_at: LX.now(),
         settings: r[1],
@@ -39,6 +39,56 @@
     } catch (e) {
       return false;
     }
+  };
+
+  /* ---------- sharing a backup ---------- */
+  exporter.backupName = function () { return "runos-backup-" + LX.D.today() + ".json"; };
+
+  /** Record that a backup left the device, for the "last backup" reminder. */
+  exporter.markBackup = function () { return db.setKV("last_backup", LX.now()); };
+  exporter.lastBackup = function () { return db.getKV("last_backup", null); };
+
+  /** Days since the last backup, or null if there has never been one. */
+  exporter.daysSinceBackup = function () {
+    return exporter.lastBackup().then(function (iso) {
+      if (!iso) return null;
+      return Math.floor((Date.now() - new Date(iso).getTime()) / 864e5);
+    });
+  };
+
+  exporter.canShareFiles = function () {
+    try {
+      if (!navigator.share || !navigator.canShare || typeof File === "undefined") return false;
+      return navigator.canShare({ files: [new File(["{}"], "test.json", { type: "application/json" })] });
+    } catch (e) { return false; }
+  };
+
+  /** Build the backup file ahead of time. Phones only let a page open the share
+      sheet straight after a tap, so the file must be ready before the tap. */
+  exporter.prepareShare = function () {
+    return exporter.buildBackup().then(function (b) {
+      var text = JSON.stringify(b, null, 2);
+      return { text: text, file: new File([text], exporter.backupName(), { type: "application/json" }) };
+    });
+  };
+
+  /** Open the phone's share sheet (Google Drive, Files, WhatsApp, email…).
+      Falls back to a normal download where sharing files is not supported.
+      Resolves "shared", "downloaded", "cancelled" or "failed". */
+  exporter.share = function (prepared) {
+    if (exporter.canShareFiles()) {
+      return navigator.share({ files: [prepared.file], title: "RunOS backup", text: "RunOS backup " + LX.D.today() })
+        .then(function () { return exporter.markBackup().then(function () { return "shared"; }); })
+        .catch(function (e) {
+          if (e && e.name === "AbortError") return "cancelled";
+          // too long since the tap, or sharing refused: save the file instead
+          return exporter.download(exporter.backupName(), prepared.text)
+            ? exporter.markBackup().then(function () { return "downloaded"; }) : "failed";
+        });
+    }
+    return exporter.download(exporter.backupName(), prepared.text)
+      ? exporter.markBackup().then(function () { return "downloaded"; })
+      : Promise.resolve("failed");
   };
 
   exporter.copy = function (text) {
@@ -117,7 +167,7 @@
   /* ---------- restore ---------- */
   /** mode "replace" wipes local data first; "merge" keeps whatever is already there. */
   exporter.restore = function (backup, mode) {
-    if (!backup || !backup.data) return Promise.reject(new Error("This file does not look like a LifeOS backup."));
+    if (!backup || !backup.data) return Promise.reject(new Error("This file does not look like a RunOS backup."));
     var wipe = mode === "replace" ? db.wipeAll() : Promise.resolve();
     return wipe.then(function () {
       var chain = Promise.resolve();

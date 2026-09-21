@@ -1,11 +1,11 @@
-# LifeOS — brief for a new conversation
+# RunOS — brief for a new conversation
 
 Paste the block below into a new chat and attach `lifeos.zip` (or give the
 GitHub link). That is everything an assistant needs to pick the project up.
 
 ---
 
-I have a working personal web app called **LifeOS** that tracks time, health,
+I have a working personal web app called **RunOS** (formerly LifeOS) that tracks time, health,
 fitness, nutrition, sleep, body measurements and strength tests. It is already
 live and I use it daily. I want to make a change to it — not rebuild it.
 
@@ -20,8 +20,12 @@ online; conflicts resolve per record by newest `updated_at`; deletes are soft.
 **Hosting:** GitHub Pages, deployed by committing to the repo. `python3 bump.py`
 raises the version and the service-worker cache name before each deploy.
 
-**Screens:** Home, Time, Health (Workout / Insights / Tests / Weekly / Food /
-Sleep / Weight / Body), Progress, More.
+**Screens:** Home, Tasks, Time, Health (Workout / Insights / Tests / Weekly /
+Food / Sleep / Weight / Body), Progress, More.
+
+**Internal names stay "lifeos"** (the IndexedDB database, cache prefix, backup
+format). Renaming them would make existing data invisible — change only what
+the user sees.
 
 **File map:**
 - `index.html` — the shell and the script order
@@ -37,6 +41,8 @@ Sleep / Weight / Body), Progress, More.
 - `js/forms.js` — every logging sheet and the timer
 - `js/perf.js` — strength and performance tests
 - `js/weekly.js` — weekly goals: the week-by-week record
+- `js/tasks.js` — the Tasks tab: to-do list, trophies, Add to Calendar
+- `js/meals.js` — saved meals
 - `js/insights.js` — gym analytics (main lifts, personal bests, volume)
 - `js/day-sheet.js` — the day drill-down and the bars/line preference
 - `js/importer.js`, `js/exporter.js` — JSON import, backups, CSV

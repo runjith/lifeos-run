@@ -270,6 +270,45 @@ create table if not exists public.weekly_goal_logs (
   deleted_at    timestamptz
 );
 
+-- ------------------------------------------------------------------ tasks
+-- The to-do list. Finished tasks are kept (status = 'done') as the record of
+-- what got done; a repeating task leaves each finished copy behind and adds the
+-- next one, linked by series_id.
+create table if not exists public.tasks (
+  id              uuid primary key,
+  user_id         uuid not null references auth.users(id) on delete cascade,
+  title           text not null,
+  notes           text,
+  category_id     uuid,                                -- same categories as Time
+  urgency         text default 'medium',               -- high | medium | low
+  due_date        date,
+  due_time        text,
+  repeat          text default 'none',                 -- none | daily | weekdays | weekly | monthly
+  series_id       uuid,
+  status          text not null default 'open',        -- open | done
+  completed_at    timestamptz,
+  completed_date  date,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  deleted_at      timestamptz
+);
+
+-- --------------------------------------------------------- meal templates
+create table if not exists public.meal_templates (
+  id          uuid primary key,
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  name        text not null,
+  meal        text,
+  items       jsonb not null default '[]'::jsonb,      -- the foods, with quantities and values
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  deleted_at  timestamptz
+);
+
+-- Mood and energy, 1 to 5, recorded in the daily review or from Home.
+alter table public.daily_reviews add column if not exists mood   integer;
+alter table public.daily_reviews add column if not exists energy integer;
+
 -- ------------------------------------------------------------- indexes
 create index if not exists activities_user_date_idx        on public.activities (user_id, date);
 create index if not exists activities_updated_idx          on public.activities (user_id, updated_at);
@@ -289,6 +328,9 @@ create index if not exists strength_tests_updated_idx     on public.strength_tes
 create index if not exists weekly_goals_updated_idx        on public.weekly_goals (user_id, updated_at);
 create index if not exists weekly_logs_week_idx            on public.weekly_goal_logs (user_id, goal_id, week_start);
 create index if not exists weekly_logs_updated_idx         on public.weekly_goal_logs (user_id, updated_at);
+create index if not exists tasks_status_idx                on public.tasks (user_id, status, due_date);
+create index if not exists tasks_updated_idx               on public.tasks (user_id, updated_at);
+create index if not exists meal_templates_updated_idx      on public.meal_templates (user_id, updated_at);
 
 -- --------------------------------------------------- row level security
 -- Every table: you can only see and change rows where user_id is your own id.
@@ -299,7 +341,7 @@ begin
     'profiles','categories','activities','exercises','workouts','workout_exercises',
     'workout_sets','food_entries','sleep_records','weight_records','body_measurements',
     'goals','daily_reviews','strength_tests','strength_results',
-    'weekly_goals','weekly_goal_logs'
+    'weekly_goals','weekly_goal_logs','tasks','meal_templates'
   ]
   loop
     execute format('alter table public.%I enable row level security', t);

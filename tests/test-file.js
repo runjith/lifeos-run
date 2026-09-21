@@ -22,7 +22,7 @@ const assert = (c, m) => { if (!c) { failed = true; console.error("ASSERT FAIL:"
 (async () => {
   console.log("starting file:// test");
   for (const f of ["js/config.js", "js/util.js", "js/data/seed.js", "js/db.js", "js/store.js",
-    "js/ui.js", "js/charts.js", "js/forms.js", "js/day-sheet.js", "js/insights.js", "js/perf.js", "js/weekly.js",
+    "js/ui.js", "js/charts.js", "js/forms.js", "js/day-sheet.js", "js/insights.js", "js/perf.js", "js/weekly.js", "js/tasks.js", "js/meals.js",
     "js/timer-ui.js", "js/importer.js", "js/exporter.js", "js/cloud.js", "js/screens/home.js",
     "js/screens/time.js", "js/screens/health.js", "js/screens/progress.js", "js/screens/more.js", "js/app.js"]) {
     window.eval(fs.readFileSync(path.join(ROOT, f), "utf8"));

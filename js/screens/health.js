@@ -222,12 +222,16 @@
                   " · " + LX.num(f.protein, 1) + "g protein</span></button>" +
                   '<span class="value">' + LX.num(f.calories) + "</span>" +
                   '<button class="icon-btn" data-del-food="' + f.id + '" aria-label="Delete">' + LX.icon("trash") + "</button></div>";
-              }).join("") + "</div></div>";
+              }).join("") + "</div>" +
+              (items.length > 1 ? '<div style="padding:4px 16px 14px"><button class="btn btn-sm" data-save-meal="' + m + '">' +
+                LX.icon("plus") + " Save as meal</button></div>" : "") + "</div>";
           }).join("");
         } else {
           html += ui.empty("Nothing logged today", "Log a meal, or paste a day from your notes under More → Import JSON.");
         }
-        if (s.foods.length) html += '<p class="hint">Tap any entry to correct it — change 1 egg to 4 and the calories and macros follow.</p>';
+        if (s.foods.length) html += '<p class="hint">Tap any entry to correct it — change 1 egg to 4 and the calories and macros follow. ' +
+          "Save a meal you eat often and it becomes one tap in the food sheet.</p>";
+        html += '<button class="btn btn-block" data-my-meals>' + LX.icon("food") + " My saved meals</button>";
 
         el.innerHTML = html;
         LX.on(el, "click", "[data-add-food]", function () { forms.logFood({ onDone: LX.app.refresh }); });
@@ -239,6 +243,11 @@
         LX.on(el, "click", "[data-del-food]", function (e, t) {
           db.remove("food_entries", t.dataset.delFood).then(function () { ui.toast("Entry deleted"); LX.app.refresh(); });
         });
+        LX.on(el, "click", "[data-save-meal]", function (e, t) {
+          var m = t.dataset.saveMeal;
+          LX.meals.saveSheet(s.foods.filter(function (f) { return f.meal === m; }), m, LX.app.refresh);
+        });
+        LX.on(el, "click", "[data-my-meals]", function () { LX.meals.manageSheet(LX.app.refresh); });
       });
   }
 

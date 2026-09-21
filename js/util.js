@@ -158,7 +158,14 @@ window.LX = window.LX || {};
     scale: '<path d="M12 5v14"/><circle cx="12" cy="12" r="8"/>',
     search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>',
     refresh: '<path d="M19 8.5A7.5 7.5 0 1 0 20 13"/><path d="M20 4.5V9h-4.5"/>',
-    calendar: '<rect x="4" y="5.5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3.5v4M15 3.5v4"/>'
+    calendar: '<rect x="4" y="5.5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3.5v4M15 3.5v4"/>',
+    tasks: '<rect x="3.5" y="4.5" width="5" height="5" rx="1.2"/><path d="M11.5 7h9"/><path d="M4.2 16.2 5.8 17.8 8.8 14.5"/><path d="M11.5 16.5h9"/>',
+    share: '<path d="M12 3.5v11"/><path d="M8 7.5 12 3.5l4 4"/><path d="M6 11.5H5a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 5 20.5h14a1.5 1.5 0 0 0 1.5-1.5v-6a1.5 1.5 0 0 0-1.5-1.5h-1"/>',
+    trophy: '<path d="M8 4.5h8v5a4 4 0 0 1-8 0z"/><path d="M8 6.5H5v1.5a3 3 0 0 0 3 3M16 6.5h3v1.5a3 3 0 0 1-3 3"/><path d="M12 13.5v3.5M8.5 20h7M9.5 17h5"/>',
+    repeat: '<path d="M4.5 11V9.5a3 3 0 0 1 3-3h11"/><path d="m15.5 3.5 3 3-3 3"/><path d="M19.5 13v1.5a3 3 0 0 1-3 3h-11"/><path d="m8.5 20.5-3-3 3-3"/>',
+    grid: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/>',
+    up: '<path d="m6.5 14.5 5.5-5.5 5.5 5.5"/>',
+    down: '<path d="m6.5 9.5 5.5 5.5 5.5-5.5"/>'
   };
   LX.icon = function (name, cls) {
     var body = P[name] || "";

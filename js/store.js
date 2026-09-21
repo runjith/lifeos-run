@@ -8,7 +8,10 @@
   var store = { categories: [], exercises: [], goals: {}, settings: {} };
 
   var DEFAULT_SETTINGS = {
-    theme: "system",
+    theme: "system",          // system | light | dark | black
+    accent: "teal",           // one of LX.THEMES
+    vivid: true,              // stronger category and chart colours
+    home_cards: null,         // null = the default order in LX.HOME_CARDS
     units: { weight: "kg", length: "cm" },
     name: ""
   };

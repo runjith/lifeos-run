@@ -10,7 +10,7 @@ const FDBKeyRange = require("fake-indexeddb/lib/FDBKeyRange");
 const ROOT = path.join(__dirname, "..");
 const HTML = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const FILES = ["js/config.js", "js/util.js", "js/data/seed.js", "js/db.js", "js/store.js",
-  "js/ui.js", "js/charts.js", "js/forms.js", "js/day-sheet.js", "js/insights.js", "js/perf.js", "js/weekly.js",
+  "js/ui.js", "js/charts.js", "js/forms.js", "js/day-sheet.js", "js/insights.js", "js/perf.js", "js/weekly.js", "js/tasks.js", "js/meals.js",
   "js/timer-ui.js", "js/importer.js", "js/exporter.js", "js/cloud.js", "js/screens/home.js",
   "js/screens/time.js", "js/screens/health.js", "js/screens/progress.js", "js/screens/more.js",
   "js/app.js"].map(f => ({ f, src: fs.readFileSync(path.join(ROOT, f), "utf8") }));
@@ -156,6 +156,10 @@ async function makeDevice(name, server) {
   });
   await LXA.perf.saveResult(LXA.perf.tests.find(t => t.name === "Cindy"), { date: today, rounds: 18 });
   await LXA.weekly.saveLog(LXA.weekly.goals.find(g => g.name.indexOf("Handstand") === 0), { date: today, value: 11 });
+  const doneTask = await LXA.tasks.save({ title: "Synced task", due_date: today, urgency: "high" });
+  await LXA.tasks.complete(doneTask.id);
+  await LXA.meals.save("Synced meal", [{ name: "Egg", quantity: 2, unit: "piece", calories: 156 }], "Breakfast");
+  await LXA.forms.saveCheckin(today, { mood: 4, energy: 3 });
   const localActivitiesBefore = await A.count("activities");
 
   const signUp = await LXA.cloud.signUp("me@example.com", "password123");
@@ -169,8 +173,11 @@ async function makeDevice(name, server) {
   assert(server.count("workout_sets", uid) === 1, "workout sets reached the cloud");
   assert(server.count("strength_results", uid) === 1, "the Cindy result reached the cloud");
   assert(server.count("weekly_goal_logs", uid) === 1, "the weekly goal entry reached the cloud");
+  assert(server.count("tasks", uid) === 1, "the finished task reached the cloud");
+  assert(server.count("meal_templates", uid) === 1, "the saved meal reached the cloud");
   assert(await A.count("activities") === localActivitiesBefore, "nothing local was deleted by signing in");
-  assert((await LXA.db.outbox()).length === 0, "the outbox is empty after a successful sync");
+  // the task was saved, then ticked, before this sync: two queue entries for one row
+  assert((await LXA.db.outbox()).length === 0, "the outbox is empty after a successful sync, even for rows saved twice");
 
   // ---------------------------------------------------------------- device B
   console.log("\n-- device B: fresh device with its own offline data --");
@@ -214,6 +221,12 @@ async function makeDevice(name, server) {
   const wlB = await LXB.db.all("weekly_goal_logs");
   assert(wlB.length === 1 && wlB[0].value === 11, "device B pulled the weekly goal entry");
   assert(wgB.some(g => g.id === wlB[0].goal_id), "and it points at the account's own goal");
+  const tB = await LXB.db.all("tasks");
+  assert(tB.length === 1 && tB[0].status === "done" && tB[0].completed_date === today, "device B pulled the finished task, still finished");
+  const mB = await LXB.db.all("meal_templates");
+  assert(mB.length === 1 && mB[0].items.length === 1, "device B pulled the saved meal with its foods");
+  const revB = (await LXB.db.all("daily_reviews")).find(r => r.date === today);
+  assert(revB && revB.mood === 4 && revB.energy === 3, "device B pulled mood and energy");
   assert(server.count("categories", uid) === catsB.length, "no duplicate categories were pushed to the cloud");
   assert(server.count("exercises", uid) === exB.length, "no duplicate exercises were pushed to the cloud");
 
@@ -279,6 +292,7 @@ async function makeDevice(name, server) {
   assert((await C.LX.db.all("categories")).length === catsB.length, "with no duplicate categories");
   assert((await C.LX.db.all("strength_results")).length === 1, "and the performance results");
   assert((await C.LX.db.all("weekly_goal_logs")).length === 1, "and the weekly goal record");
+  assert((await C.LX.db.all("tasks")).length === 1, "and the finished tasks");
 
   console.log(failed ? "\nFAILURES ABOVE" : "\nCloud sync OK");
   process.exit(failed ? 1 : 0);

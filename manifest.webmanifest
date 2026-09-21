@@ -1,12 +1,12 @@
 {
-  "name": "LifeOS",
-  "short_name": "LifeOS",
+  "name": "RunOS",
+  "short_name": "RunOS",
   "description": "Where did my time go, and how is my health progressing?",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#F3F4F3",
+  "background_color": "#FFFFFF",
   "theme_color": "#F3F4F3",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

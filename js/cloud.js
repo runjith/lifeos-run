@@ -271,7 +271,16 @@
         if (!queue.length) return;
         // one batch per table, newest state of each row
         var byStore = {};
-        queue.forEach(function (q) { (byStore[q.store] = byStore[q.store] || {})[q.id] = q; });
+        // A row saved several times before a sync has several queue entries.
+        // Only its latest state is sent, but every one of those entries has to
+        // be cleared afterwards — otherwise one is left behind and "waiting to
+        // sync" never reaches zero.
+        var seqs = {};
+        queue.forEach(function (q) {
+          (byStore[q.store] = byStore[q.store] || {})[q.id] = q;
+          var k = q.store + "|" + q.id;
+          (seqs[k] = seqs[k] || []).push(q.seq);
+        });
         var chain = Promise.resolve();
         // parents before children, so a foreign key never arrives before its target
         Object.keys(byStore).sort(function (a, b) {
@@ -293,7 +302,11 @@
                 var c = Promise.resolve();
                 ids.forEach(function (id) {
                   c = c.then(function () { return db.markClean(storeName, id); })
-                       .then(function () { return db.dequeue(byStore[storeName][id].seq); });
+                       .then(function () {
+                         return (seqs[storeName + "|" + id] || []).reduce(function (p, seq) {
+                           return p.then(function () { return db.dequeue(seq); });
+                         }, Promise.resolve());
+                       });
                 });
                 return c;
               });

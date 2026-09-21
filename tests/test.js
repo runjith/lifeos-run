@@ -26,7 +26,7 @@ global.fetch = window.fetch;
 
 const files = [
   "js/config.js", "js/util.js", "js/data/seed.js", "js/db.js", "js/store.js",
-  "js/ui.js", "js/charts.js", "js/forms.js", "js/day-sheet.js", "js/insights.js", "js/perf.js", "js/weekly.js", "js/timer-ui.js",
+  "js/ui.js", "js/charts.js", "js/forms.js", "js/day-sheet.js", "js/insights.js", "js/perf.js", "js/weekly.js", "js/tasks.js", "js/meals.js", "js/timer-ui.js",
   "js/importer.js", "js/exporter.js", "js/cloud.js",
   "js/screens/home.js", "js/screens/time.js", "js/screens/health.js",
   "js/screens/progress.js", "js/screens/more.js", "js/app.js"
@@ -664,6 +664,314 @@ function assert(cond, msg) {
     await new Promise(r => setTimeout(r, 20));
     const h = document.getElementById("view").innerHTML;
     assert(h.length > 400 && h.indexOf("NaN") === -1, key + " still renders with weekly goals in place");
+  }
+
+  { // 1.3.0 checks get their own scope so their names cannot clash with earlier ones
+  // ================================================================ 1.3.0
+  const html = () => document.getElementById("view").innerHTML;
+
+  // ---------------------------------------------------------------- name and icon
+  console.log("\n-- RunOS --");
+  assert(document.title === "RunOS", "the app is called RunOS");
+  const ixHtml = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const mani = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.webmanifest"), "utf8"));
+  assert(mani.name === "RunOS" && mani.short_name === "RunOS", "the home-screen name is RunOS");
+  assert(ixHtml.indexOf('apple-mobile-web-app-title" content="RunOS"') > -1, "the iPhone home-screen title is RunOS");
+  assert(["icon-180.png", "icon-192.png", "icon-512.png"].every(f => fs.statSync(path.join(ROOT, f)).size > 2000),
+    "the new icons are in place");
+  assert((await LX.db.all("activities")).length > 0, "renaming did not touch the stored data");
+
+  // ---------------------------------------------------------------- tasks
+  console.log("\n-- tasks --");
+  const T = LX.tasks;
+  const yday = LX.D.add(today, -1), tmrw = LX.D.add(today, 1);
+  const a = await T.save({ title: "Call the bank", due_date: today, due_time: "17:00", urgency: "high", category_id: LX.store.cat("work").id });
+  const b = await T.save({ title: "Renew insurance", due_date: LX.D.add(today, -3), urgency: "medium" });
+  const c = await T.save({ title: "Plan trip", due_date: tmrw, urgency: "low" });
+  const d = await T.save({ title: "Read that book" });
+  let open = await T.open();
+  let bk = T.buckets(open, today);
+  assert(bk.overdue.some(t => t.id === b.id), "a task whose date has passed is overdue, not dropped");
+  assert(bk.today.some(t => t.id === a.id) && bk.upcoming.some(t => t.id === c.id) && bk.someday.some(t => t.id === d.id),
+    "tasks sort into today, upcoming and someday");
+  assert(open[0].id === b.id, "overdue tasks come first");
+
+  // ticking off: struck through, moved to finished, kept for good
+  const r1 = await T.complete(a.id);
+  assert(r1.task.status === "done" && r1.task.completed_date === today, "ticking a task records the day it was done");
+  assert(r1.task.completed_at && r1.task.completed_at.length > 10, "and the exact time");
+  assert(!r1.next, "a one-off task does not come back");
+  let fin = await T.finished();
+  assert(fin.some(t => t.id === a.id), "it moves to the finished list");
+  assert((await T.open()).every(t => t.id !== a.id), "and off the open list");
+
+  // reopen a mistaken tick
+  await T.reopen(a.id);
+  assert((await T.open()).some(t => t.id === a.id), "a finished task can be reopened");
+  await T.complete(a.id);
+
+  // repeating tasks
+  const rent = await T.save({ title: "Pay rent", due_date: "2026-01-31", repeat: "monthly" });
+  assert(T.nextDate({ due_date: "2026-01-31", repeat: "monthly" }, "2026-01-31") === "2026-02-28",
+    "monthly on the 31st lands on the last day of a short month");
+  assert(T.nextDate({ due_date: "2026-09-18", repeat: "weekdays" }, "2026-09-18") === "2026-09-21",
+    "a weekday task done on Friday comes back on Monday");
+  assert(T.nextDate({ due_date: LX.D.add(today, -3), repeat: "daily" }, today) === tmrw,
+    "an overdue daily task comes back tomorrow, not three more overdue copies");
+  const r2 = await T.complete(rent.id);
+  assert(r2.task.status === "done" && r2.next && r2.next.status === "open", "ticking a repeating task keeps that one and adds the next");
+  assert(r2.next.series_id === rent.id && r2.next.title === "Pay rent", "the next one belongs to the same series");
+  assert(r2.next.due_date > today, "and is due after today");
+
+  // trophies
+  await T.complete(b.id);
+  fin = await T.finished();
+  const tr = T.trophies(fin, today);
+  assert(tr.total === fin.length && tr.total >= 3, "the trophy count is every finished task (" + tr.total + ")");
+  assert(tr.thisWeek >= 3 && tr.run >= 1, "this week and the day streak count up");
+  assert(tr.onTimeRate !== null && tr.onTimeRate < 100, "a late task lowers the on-time rate (" + tr.onTimeRate + "%)");
+  assert(tr.weeks.length === 12, "twelve weeks of history for the chart");
+
+  // add to calendar
+  const ics = T.ics(Object.assign({}, a, { due_time: "17:00", notes: "ask about fees, charges" }));
+  assert(ics.indexOf("BEGIN:VEVENT") > -1 && ics.indexOf("DTSTART:" + today.replace(/-/g, "") + "T170000") > -1,
+    "a timed task becomes a calendar event at that time");
+  assert(ics.indexOf("TRIGGER:-PT15M") > -1, "with a reminder 15 minutes before");
+  assert(ics.indexOf("fees\\, charges") > -1, "commas in notes are escaped for calendars");
+  assert(T.ics({ id: "x", title: "Rent", due_date: today, repeat: "monthly" }).indexOf("RRULE:FREQ=MONTHLY") > -1,
+    "a repeating task repeats in the calendar too");
+  assert(T.ics({ id: "y", title: "No date" }) === null, "a task with no date cannot go to the calendar");
+
+  // the screen
+  LX.screens.tasks.setView("today");
+  await LX.app.go("tasks");
+  await wait(40);
+  assert(!!document.querySelector('#tabbar [data-tab="tasks"]'), "Tasks has its own tab");
+  assert(html().indexOf("Plan trip") === -1 && html().indexOf("Finished today") > -1, "Today shows today's tasks and what was finished");
+  assert(html().indexOf("NaN") === -1 && html().indexOf("undefined") === -1, "Tasks output is clean");
+  assert(!!document.querySelector("#view .task-row.is-done"), "finished tasks are struck through");
+
+  // quick add from the screen
+  const qBox = document.querySelector("#view [data-task-quick]");
+  qBox.value = "Buy printer ink";
+  document.querySelector("#view [data-task-add]").click();
+  await wait(80);
+  assert((await T.open()).some(t => t.title === "Buy printer ink" && t.due_date === today), "a task typed in one line is added for today");
+
+  // ticking from the list
+  const ink = (await T.open()).find(t => t.title === "Buy printer ink");
+  document.querySelector('#view [data-task-tick="' + ink.id + '"]').click();
+  await wait(400);
+  assert((await T.finished()).some(t => t.id === ink.id), "the tick box finishes the task");
+
+  for (const v of ["upcoming", "someday", "finished"]) {
+    LX.screens.tasks.setView(v);
+    await LX.app.refresh();
+    await wait(30);
+    assert(html().length > 300 && html().indexOf("NaN") === -1, "the " + v + " view renders");
+  }
+  assert(html().indexOf("All time") > -1 && html().indexOf("<svg") > -1, "Finished shows the trophy numbers and chart");
+
+  // the edit sheet
+  document.querySelector('#view [data-task-edit="' + b.id + '"]').click();
+  await wait(60);
+  let tsheet = document.querySelector(".sheet");
+  assert(tsheet && tsheet.innerHTML.indexOf("Reopen") > -1 && tsheet.innerHTML.indexOf("Add to calendar") > -1,
+    "a finished task can be reopened or sent to the calendar");
+  LX.ui.closeAllSheets(); await wait(320);
+
+  // deleting is deliberate
+  await T.remove(d.id);
+  assert(!(await T.all()).some(t => t.id === d.id), "a task can still be deleted on purpose");
+
+  // daily review picks up what was finished
+  LX.forms.dailyReview({ date: today });
+  await wait(80);
+  const rv = document.querySelector(".sheet");
+  assert(rv.querySelector('[name="completed"]').value.indexOf("Call the bank") > -1, "the daily review starts from the tasks finished today");
+  assert(!!rv.querySelector('[data-scale="mood"]') && !!rv.querySelector('[data-scale="energy"]'), "the review asks for mood and energy");
+  rv.querySelector('[data-scale="mood"][data-v="4"]').click();
+  rv.querySelector("[data-save]").click();
+  await wait(120);
+  let rvRec = (await LX.db.byDate("daily_reviews", today))[0];
+  assert(rvRec.mood === 4, "mood is saved with the review");
+  await wait(320);
+
+  // ---------------------------------------------------------------- Home
+  console.log("\n-- Home --");
+  await LX.app.go("home");
+  await wait(60);
+  let h = html();
+  assert(h.indexOf('data-quick="measure"') === -1, "the Measure button is gone from Home");
+  assert(h.indexOf('data-quick="timer"') > -1, "a Timer button takes its place");
+  assert(h.indexOf("Today\u2019s tasks") > -1 && !!document.querySelector("#view [data-task-quick]"), "Home shows today's tasks with a quick add");
+  assert(h.indexOf("How\u2019s today?") > -1, "Home has the mood and energy check-in");
+  assert(!!document.querySelector('#view button.stat[data-quick="sleep"]'), "the stat tiles are tappable");
+  assert(h.indexOf("NaN") === -1 && h.indexOf("undefined") === -1, "Home output is clean");
+
+  // check-in straight from Home
+  document.querySelector('#view [data-checkin="energy"][data-v="5"]').click();
+  await wait(80);
+  rvRec = (await LX.db.byDate("daily_reviews", today))[0];
+  assert(rvRec.energy === 5 && rvRec.mood === 4, "energy saves from Home without losing the review's mood");
+  assert(rvRec.journal !== undefined || rvRec.completed, "and without wiping the written review");
+
+  // a stat tile opens its sheet
+  document.querySelector('#view button.stat[data-quick="sleep"]').click();
+  await wait(60);
+  assert(document.querySelector(".sheet h2, .sheet .sheet-title") !== null && document.querySelector(".sheet").innerHTML.indexOf("Bedtime") > -1,
+    "tapping Sleep on Home opens the sleep sheet");
+  LX.ui.closeAllSheets(); await wait(320);
+
+  // choosing and ordering cards
+  await LX.store.saveSettings({ home_cards: [{ key: "tasks", on: true }, { key: "quick", on: false }, { key: "checkin", on: false }] });
+  await LX.app.refresh(); await wait(40);
+  h = html();
+  assert(h.indexOf('data-quick="activity"') === -1, "a switched-off card disappears from Home");
+  assert(h.indexOf("How\u2019s today?") === -1, "so does the check-in when it is off");
+  assert(h.indexOf("Today\u2019s tasks") < h.indexOf("Where the day went"), "cards follow the chosen order");
+  assert(LX.screens.home.cardOrder().length === LX.HOME_CARDS.length, "cards missing from the saved list are added back");
+  await LX.store.saveSettings({ home_cards: null });
+  await LX.app.refresh(); await wait(30);
+
+  // ---------------------------------------------------------------- sleep shortcuts
+  console.log("\n-- sleep shortcuts --");
+  LX.forms.logSleep({});
+  await wait(50);
+  let ss = document.querySelector(".sheet");
+  const sevenHalf = ss.querySelector('[data-sleep-mins="450"]');
+  assert(!!sevenHalf && !!ss.querySelector('[data-sleep-mins="390"]') && !!ss.querySelector('[data-sleep-mins="420"]'),
+    "the sleep sheet offers 6h 30m, 7h and 7h 30m");
+  ss.querySelector('[name="wake_time"]').value = "06:30";
+  sevenHalf.click();
+  assert(ss.querySelector('[name="bedtime"]').value === "23:00", "7h 30m before a 06:30 wake-up is a 23:00 bedtime");
+  ss.querySelector('[data-sleep-mins="390"]').click();
+  assert(ss.querySelector('[name="bedtime"]').value === "00:00", "6h 30m crosses midnight correctly");
+  LX.ui.closeAllSheets(); await wait(320);
+
+  const sleepCat = LX.store.categories.find(x => x.bucket === "sleep");
+  LX.forms.logActivity({ category_id: sleepCat.id });
+  await wait(50);
+  ss = document.querySelector(".sheet");
+  assert(!!ss.querySelector('[data-mins="450"]') && !ss.querySelector('[data-mins="15"]'),
+    "logging the Sleep category offers 6h–8h instead of 15 minutes to 2 hours");
+  const catSel = ss.querySelector('[name="category_id"]');
+  catSel.value = LX.store.cat("work").id;
+  catSel.dispatchEvent(new window.Event("change", { bubbles: true }));
+  assert(!!ss.querySelector('[data-mins="15"]') && !ss.querySelector('[data-mins="450"]'), "other categories keep the short durations");
+  LX.ui.closeAllSheets(); await wait(320);
+
+  // ---------------------------------------------------------------- meals
+  console.log("\n-- meal templates --");
+  const M = LX.meals;
+  const bfast = [
+    { name: "Egg (whole)", quantity: 3, unit: "piece", calories: 234, protein: 18.9, carbs: 1.8, fat: 15.9, fiber: 0 },
+    { name: "Oats (dry)", quantity: 40, unit: "g", calories: 156, protein: 6.8, carbs: 26.4, fat: 2.8, fiber: 4.2 }
+  ];
+  const tpl = await M.save("My usual breakfast", bfast, "Breakfast");
+  assert((await M.all()).some(m => m.name === "My usual breakfast" && m.items.length === 2), "a meal is saved with its foods");
+  const foodsPre = (await LX.db.all("food_entries")).length;
+  await M.log(tpl.items, tmrw, "Breakfast");
+  const foodsPost = await LX.db.all("food_entries");
+  assert(foodsPost.length === foodsPre + 2, "logging a saved meal writes each food as a normal entry");
+  assert((await LX.store.daySummary(tmrw)).nutrition.calories === 390, "and the day's totals add up (390 kcal)");
+
+  // one tap in the food sheet: same as yesterday
+  LX.forms.logFood({ date: LX.D.add(tmrw, 1) });
+  await wait(100);
+  let fs2 = document.querySelector(".sheet");
+  fs2.querySelector('[data-meal="Breakfast"]').click();
+  await wait(60);
+  const same = fs2.querySelector("[data-same-yesterday]");
+  assert(!!same, "the food sheet offers yesterday's breakfast again");
+  assert(!!fs2.querySelector("[data-template]"), "and the saved meal");
+  same.click();
+  await wait(150);
+  assert((await LX.db.byDate("food_entries", LX.D.add(tmrw, 1))).length === 2, "one tap repeats the whole meal");
+  await wait(320);
+  await M.remove(tpl.id);
+  assert(!(await M.all()).some(m => m.id === tpl.id), "a saved meal can be deleted");
+  assert((await LX.db.byDate("food_entries", tmrw)).length === 2, "deleting it leaves food already logged alone");
+
+  // ---------------------------------------------------------------- themes
+  console.log("\n-- themes --");
+  const root = document.documentElement;
+  await LX.store.saveSettings({ accent: "sunset", vivid: true, theme: "light" });
+  LX.app.applyTheme();
+  assert(root.getAttribute("data-accent") === "sunset" && root.hasAttribute("data-vivid"), "a colour theme and vivid colours switch on");
+  await LX.store.saveSettings({ theme: "black", vivid: false });
+  LX.app.applyTheme();
+  assert(root.getAttribute("data-theme") === "dark" && root.hasAttribute("data-black"), "Black is dark mode on pure black");
+  assert(!root.hasAttribute("data-vivid"), "Soft turns vivid colours off");
+  assert(document.querySelector('meta[name="theme-color"]').getAttribute("content") === "#000000", "the phone status bar follows");
+  const css = fs.readFileSync(path.join(ROOT, "css/tokens.css"), "utf8");
+  assert(LX.THEMES.every(t => t.key === "teal" || css.indexOf('data-accent="' + t.key + '"') > -1), "every theme has its colours defined");
+  await LX.store.saveSettings({ theme: "system", accent: "teal", vivid: true });
+  LX.app.applyTheme();
+
+  await LX.app.go("more");
+  document.querySelector('[data-more="appearance"]').click();
+  await wait(60);
+  assert(document.querySelectorAll(".sheet [data-accent]").length === 5, "Appearance offers five colour themes");
+  document.querySelector('.sheet [data-accent="ocean"]').click();
+  await wait(60);
+  assert(LX.store.settings.accent === "ocean", "picking one saves it");
+  LX.ui.closeAllSheets(); await wait(320);
+  await LX.store.saveSettings({ accent: "teal" }); LX.app.applyTheme();
+
+  // ---------------------------------------------------------------- backups
+  console.log("\n-- backups --");
+  await LX.db.setKV("last_backup", null);
+  assert((await LX.exporter.daysSinceBackup()) === null, "no backup yet reads as never");
+  await LX.app.go("home"); await wait(40);
+  assert(html().indexOf("data-backup-now") > -1, "Home nudges when there has never been a backup");
+  const prepared = await LX.exporter.prepareShare();
+  assert(prepared.file.name.indexOf("runos-backup-") === 0 && JSON.parse(prepared.text).data.tasks.length > 0,
+    "the shared file is a full backup, tasks included");
+  // this test browser cannot share files, so it falls back to a download
+  // (it also lacks download links, which every real browser has)
+  if (!window.URL.createObjectURL) { window.URL.createObjectURL = () => "blob:test"; window.URL.revokeObjectURL = () => {}; }
+  const res = await LX.exporter.share(prepared);
+  assert(res === "downloaded", "without a share sheet the backup downloads instead (" + res + ")");
+  assert((await LX.exporter.daysSinceBackup()) === 0, "and the backup is recorded as done today");
+  await LX.app.refresh(); await wait(40);
+  assert(html().indexOf("data-backup-now") === -1, "the nudge goes away once backed up");
+
+  // a phone that can share opens the share sheet with the file
+  let sharedWith = null;
+  window.navigator.canShare = () => true;
+  window.navigator.share = (d) => { sharedWith = d; return Promise.resolve(); };
+  assert((await LX.exporter.share(prepared)) === "shared" && sharedWith.files[0].name.indexOf("runos-backup-") === 0,
+    "on a phone the backup goes to the share sheet as a file");
+  window.navigator.share = () => Promise.reject(Object.assign(new Error("x"), { name: "AbortError" }));
+  assert((await LX.exporter.share(prepared)) === "cancelled", "cancelling the share sheet is not an error");
+  delete window.navigator.share; delete window.navigator.canShare;
+
+  // the new tables survive a backup round trip, and old backups still restore
+  const b4 = await LX.exporter.buildBackup();
+  assert(b4.data.tasks.length >= 4 && Array.isArray(b4.data.meal_templates), "backups include tasks and saved meals");
+  const oldB = JSON.parse(JSON.stringify(b4)); delete oldB.data.tasks; delete oldB.data.meal_templates; oldB.app = "LifeOS";
+  await LX.exporter.restore(oldB, "merge");
+  assert(true, "a backup made before this version (named LifeOS) still restores");
+  await LX.exporter.restore(b4, "replace");
+  await LX.store.init();
+  assert((await LX.tasks.finished()).length >= 3, "finished tasks survive a restore — the trophy case is safe");
+
+  // the health check
+  await LX.app.go("more");
+  document.querySelector('[data-more="about"]').click();
+  await wait(80);
+  const ab = document.querySelector(".sheet").innerHTML;
+  assert(ab.indexOf("Last backup") > -1 && ab.indexOf("Kept permanently") > -1 && ab.indexOf("Records") > -1,
+    "About shows the health check: backups, storage and records");
+  LX.ui.closeAllSheets(); await wait(320);
+
+  for (const key of ["home", "tasks", "time", "health", "progress", "more"]) {
+    await LX.app.go(key); await wait(20);
+    const hh = html();
+    assert(hh.length > 300 && hh.indexOf("NaN") === -1, key + " renders at the end of the run");
+  }
+
   }
 
   console.log(process.exitCode ? "\nFAILURES ABOVE" : "\nAll checks passed");

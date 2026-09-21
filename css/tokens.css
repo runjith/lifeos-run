@@ -134,3 +134,38 @@ html[data-theme="dark"] {
   --shadow-sheet: 0 -8px 40px rgba(0, 0, 0, 0.6);
   --shadow-pop:   0 6px 26px rgba(0, 0, 0, 0.5);
 }
+
+/* ---------------------------------------------------------------------------
+   Colour themes (More → Appearance). Each swaps only the main colour.
+--------------------------------------------------------------------------- */
+html[data-accent="ocean"]  { --accent: #1D5FD1; --accent-soft: #E2EAFB; --accent-line: #B9CCF3; }
+html[data-accent="sunset"] { --accent: #C2410C; --accent-soft: #FCEBE2; --accent-line: #F3C6AE; }
+html[data-accent="violet"] { --accent: #6D3FD1; --accent-soft: #EEE7FB; --accent-line: #D2C3F3; }
+html[data-accent="mono"]   { --accent: #111111; --accent-soft: #ECECEC; --accent-line: #CFCFCF; }
+
+html[data-theme="dark"][data-accent="ocean"]  { --accent: #5B9BFF; --accent-ink: #061634; --accent-soft: #122441; --accent-line: #1E3A66; }
+html[data-theme="dark"][data-accent="sunset"] { --accent: #FF8A4C; --accent-ink: #2A1003; --accent-soft: #3A1D0E; --accent-line: #5C2D14; }
+html[data-theme="dark"][data-accent="violet"] { --accent: #A98BFF; --accent-ink: #1B0C3D; --accent-soft: #251A45; --accent-line: #3A2A6B; }
+html[data-theme="dark"][data-accent="mono"]   { --accent: #F2F2F2; --accent-ink: #0A0A0A; --accent-soft: #242424; --accent-line: #3A3A3A; }
+
+/* Pure black — for OLED phone screens. */
+html[data-theme="dark"][data-black] {
+  --bg: #000000; --surface: #0C0C0C; --surface-2: #131313; --surface-sunk: #050505;
+  --line: #1E1E1E; --line-strong: #2C2C2C;
+}
+
+/* Vivid — stronger category, chart and progress colours. */
+html[data-vivid] {
+  --c-work: #1F6FB2;     --c-exercise: #E4572E; --c-boxing: #C0392B;  --c-walking: #2E9E4F;
+  --c-learning: #6C4AD6; --c-reading: #8E5CF0;  --c-coding: #0F9D8A;  --c-business: #2F6FE0;
+  --c-cooking: #E0A100;  --c-chores: #7A7F6A;   --c-family: #E0457B;  --c-travel: #1C9BC7;
+  --c-personal: #4FA33A; --c-entertain: #E08A1E; --c-youtube: #E53935; --c-social: #B0439C;
+  --c-sleep: #4B4FD1;    --c-other: #6E7682;
+}
+html[data-theme="dark"][data-vivid] {
+  --c-work: #4DA3FF;     --c-exercise: #FF7A45; --c-boxing: #FF5A4A;  --c-walking: #4CD07A;
+  --c-learning: #9B7BFF; --c-reading: #B79CFF;  --c-coding: #2FD3B8;  --c-business: #5C94FF;
+  --c-cooking: #FFC940;  --c-chores: #B9BCA8;   --c-family: #FF6FA3;  --c-travel: #3CC4F0;
+  --c-personal: #7CD65A; --c-entertain: #FFA94D; --c-youtube: #FF5C57; --c-social: #E36BD0;
+  --c-sleep: #7A80FF;    --c-other: #B8BEC8;
+}

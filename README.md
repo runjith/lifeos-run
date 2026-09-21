@@ -1,4 +1,4 @@
-# LifeOS
+# RunOS
 
 A personal app for one question: **where did my time go, and how is my health progressing?**
 
@@ -86,6 +86,8 @@ js/charts.js          SVG ribbon, bars, stacked days, trend lines
 js/forms.js           every logging sheet + the timer
 js/perf.js            strength & performance tests: data, analytics, sheets
 js/weekly.js          weekly goals: data, week-by-week record, sheets
+js/tasks.js           tasks: the to-do list, trophies, Add to Calendar, the Tasks tab
+js/meals.js           saved meals: log a whole meal in one tap
 js/insights.js        gym analytics: main lifts, personal bests, volume
 js/day-sheet.js       the day drill-down + the bars/line preference
 bump.py               raise the version before deploying (see DEPLOY.md)
@@ -315,6 +317,79 @@ shows what is still pending, and you can tick a goal off from there.
 week) and `weekly_goal_logs` (goal, date, the Monday of its week, value, notes,
 and the time it was ticked off). Both sync and both appear in backups. Backups
 made before this feature existed restore normally.
+
+
+---
+
+## 4d. Tasks
+
+**The Tasks tab.** A to-do list you visit every day. Tick a task and it is
+struck through and moved to **Finished**, where it stays for good with the day
+and time you finished it. Finished tasks are only removed if you delete one on
+purpose; a tick made by mistake can be undone with **Reopen**.
+
+Each task can have a date, a time, an urgency (High, Medium, Low) and a
+category — the same categories as Time. Views: **Today** (with anything
+overdue at the top), **Upcoming**, **Someday** (no date) and **Finished**.
+
+- **Overdue tasks never disappear.** They stay under Today, marked in red with
+  how many days late, until they are done.
+- **Repeating tasks** (every day, every weekday, weekly, monthly). Ticking one
+  keeps that occurrence in Finished and creates the next, dated after today —
+  so a daily task that is three days overdue gives you tomorrow's, not three
+  more overdue copies. Monthly tasks on the 31st land on the last day of short
+  months.
+- **Trophies** on the Finished view: all-time count, this week and month, the
+  day streak (days in a row with at least one task done), the on-time rate,
+  and a chart of tasks finished per week.
+- **Add to Calendar** on any dated task creates a calendar event with its own
+  alert — 15 minutes before for a timed task, 9am for an all-day one. Your
+  phone's calendar does the reminding, with nothing for this app to keep running.
+- **Quick add**: type a task on Home or at the top of Tasks and press Enter; it
+  is added for today.
+- The **daily review** fills "What actually got done?" from the tasks you
+  finished that day, ready to edit.
+
+---
+
+## 4e. Home, themes, meals and backups
+
+**Home is made of cards** you choose and order under **More → Home screen**:
+quick actions, today at a glance (tap a tile to log it), today's tasks, mood &
+energy, weekly goals, where the day went, logged today, strength, and the daily
+review. A line at the top says what matters right now.
+
+**Mood and energy**, 1 to 5, can be tapped straight from Home or set in the
+daily review. Both are stored with that day's review.
+
+**Appearance** has four modes (Auto, Light, Dark, and Black for OLED phone
+screens), five colour themes (Teal, Ocean, Sunset, Violet, Mono) and a colour
+strength switch: **Vivid** (stronger category, chart and progress colours) or
+**Soft** (the original calmer look). The phone's status bar follows the choice.
+
+**Saved meals.** On the Food tab, "Save as meal" under any meal with two or more
+foods stores it. The food sheet then offers it as one tap, along with "Same
+breakfast as yesterday". Logging a saved meal writes ordinary food entries, so
+editing and totals work exactly as usual.
+
+**Sleep shortcuts.** The sleep sheet has 6h to 8h buttons that keep your wake
+time and work the bedtime back from it. Logging the Sleep category as an
+activity offers the same long durations instead of 15 minutes to 2 hours.
+
+**Backups.** More → Data & backup → **Share backup** opens the phone's share
+sheet, so a backup can go straight to Google Drive, Files or email. The app
+remembers when a backup last left the device, and Home shows a reminder once it
+has been more than a week. The Supabase free plan keeps no backups of its own,
+so these files are the real safety net.
+
+**About & health check** shows version, last sync, changes waiting to sync, last
+backup, whether the browser has agreed to keep the data permanently, space used
+and record count. On start the app asks the browser to keep its data even when
+the device is short of space.
+
+**The name.** The app shows as RunOS. Internal names — the local database, the
+cache, the backup format — deliberately stayed the same, so nothing stored was
+touched by the rename, and backups from before it restore normally.
 
 
 ## 5. Import a day as JSON

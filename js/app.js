@@ -1,4 +1,4 @@
-/* LifeOS — app shell: theme, navigation and rendering. */
+/* RunOS — app shell: theme, navigation and rendering. */
 (function (LX) {
   "use strict";
   var app = {};
@@ -7,6 +7,7 @@
 
   var TABS = [
     { key: "home", label: "Home", icon: "home" },
+    { key: "tasks", label: "Tasks", icon: "tasks" },
     { key: "time", label: "Time", icon: "clock" },
     { key: "health", label: "Health", icon: "health" },
     { key: "progress", label: "Progress", icon: "progress" },
@@ -14,11 +15,30 @@
   ];
 
   app.applyTheme = function () {
-    var pref = (LX.store.settings && LX.store.settings.theme) || "system";
-    var dark = pref === "dark" || (pref === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    var st = LX.store.settings || {};
+    var pref = st.theme || "system";
+    var black = pref === "black";
+    var dark = black || pref === "dark" ||
+      (pref === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    var root = document.documentElement;
+    root.setAttribute("data-theme", dark ? "dark" : "light");
+    root.setAttribute("data-accent", st.accent || "teal");
+    if (black) root.setAttribute("data-black", ""); else root.removeAttribute("data-black");
+    if (st.vivid !== false) root.setAttribute("data-vivid", ""); else root.removeAttribute("data-vivid");
+    // the phone's own status bar follows the page colour
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", dark ? "#0B0D0C" : "#F3F4F3");
+    if (meta) meta.setAttribute("content", black ? "#000000" : (dark ? "#0B0D0C" : "#F3F4F3"));
+  };
+
+  /* Ask the browser to keep this app's data even when the device is short of
+     space. Without this a browser is allowed to clear it; with it, only you can. */
+  app.keepData = function () {
+    try {
+      if (!navigator.storage || !navigator.storage.persist) return Promise.resolve(false);
+      return navigator.storage.persisted().then(function (yes) {
+        return yes || navigator.storage.persist();
+      }).catch(function () { return false; });
+    } catch (e) { return Promise.resolve(false); }
   };
 
   app.go = function (key) {
@@ -125,6 +145,7 @@
         }, 700);
       }
       LX.timerUI.mount();
+      app.keepData();
       // keep Home's clock and any running timer honest when returning to the app
       document.addEventListener("visibilitychange", function () {
         if (!document.hidden) app.refresh();
@@ -134,7 +155,7 @@
       var el = document.getElementById("boot") || document.getElementById("view");
       if (el) el.innerHTML =
         '<div class="banner danger" style="margin:24px">' + LX.icon("alert") +
-        "<span><b>LifeOS could not start</b><br>" + LX.esc(e.message) + "</span></div>";
+        "<span><b>RunOS could not start</b><br>" + LX.esc(e.message) + "</span></div>";
     });
   };
 

@@ -57,7 +57,7 @@ function assert(c, m) { if (!c) { failed = true; console.error("ASSERT FAIL:", m
   console.log("created a version-1 database with 1 weight record");
 
   for (const f of ["js/config.js", "js/util.js", "js/data/seed.js", "js/db.js", "js/store.js",
-    "js/ui.js", "js/charts.js", "js/forms.js", "js/perf.js", "js/weekly.js", "js/timer-ui.js",
+    "js/ui.js", "js/charts.js", "js/forms.js", "js/perf.js", "js/weekly.js", "js/tasks.js", "js/meals.js", "js/timer-ui.js",
     "js/importer.js", "js/exporter.js", "js/cloud.js", "js/screens/home.js", "js/screens/time.js",
     "js/screens/health.js", "js/screens/progress.js", "js/screens/more.js", "js/app.js"]) {
     window.eval(fs.readFileSync(path.join(ROOT, f), "utf8"));
@@ -82,6 +82,12 @@ function assert(c, m) { if (!c) { failed = true; console.error("ASSERT FAIL:", m
   const wlogs = await LX.weekly.logs(hand.id);
   assert(wlogs.length === 1 && wlogs[0].week_start === LX.D.weekStart(LX.D.today()),
     "weekly entries can be written to the upgraded database");
+
+  const tk = await LX.tasks.save({ title: "Upgrade check", due_date: LX.D.today() });
+  await LX.tasks.complete(tk.id);
+  assert((await LX.tasks.finished()).length === 1, "tasks can be written to the upgraded database");
+  await LX.meals.save("Test meal", [{ name: "Egg", quantity: 2, unit: "piece", calories: 156 }], "Breakfast");
+  assert((await LX.meals.all()).length === 1, "saved meals can be written too");
 
   const cindy = LX.perf.tests.find(t => t.name === "Cindy");
   await LX.perf.saveResult(cindy, { date: LX.D.today(), rounds: 16 });

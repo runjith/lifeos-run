@@ -363,3 +363,38 @@ body.has-timer .view { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inse
   .stat { padding: 13px 14px 15px; }
   .card { padding: var(--s4); }
 }
+
+/* ---------------------------------------------------------------------------
+   Tasks, the Home check-in and the theme picker
+--------------------------------------------------------------------------- */
+.task-row { align-items: flex-start; }
+.task-row .grow { text-align: left; background: none; border: 0; padding: 0; min-width: 0; color: inherit; font: inherit; }
+.task-row.is-done .primary { text-decoration: line-through; color: var(--ink-3); }
+.task-check {
+  flex: none; width: 26px; height: 26px; margin-top: 1px; border-radius: 8px;
+  border: 2px solid var(--line-strong); background: var(--surface);
+  display: grid; place-items: center; color: var(--accent-ink); cursor: pointer;
+  transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+.task-check svg { width: 16px; height: 16px; opacity: 0; }
+.task-check.is-on { background: var(--accent); border-color: var(--accent); }
+.task-check.is-on svg { opacity: 1; }
+.urg { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.overdue { color: var(--danger); font-weight: 600; }
+.quick-add { display: flex; gap: 8px; }
+.quick-add .input { flex: 1; }
+
+.checkin-row { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 10px; margin-top: 10px; }
+.checkin-row .segmented button { min-height: 40px; font-size: 1.05rem; }
+
+.theme-swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.theme-swatches button {
+  display: grid; justify-items: center; gap: 6px; padding: 10px 4px; border-radius: var(--r-md);
+  border: 2px solid var(--line); background: var(--surface); color: var(--ink-2); font: var(--t-micro);
+}
+.theme-swatches button[aria-pressed="true"] { border-color: var(--accent); color: var(--ink); }
+.theme-swatches .dot { width: 26px; height: 26px; border-radius: 50%; }
+
+.stat.tap { cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; }
+.stat.tap:active { transform: scale(.98); }
+.greeting { font: var(--t-h2); margin: 0; }

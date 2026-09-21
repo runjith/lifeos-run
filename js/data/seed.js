@@ -168,3 +168,54 @@
       target_value: 10, target_unit: "minutes", times_per_week: 1, notes: "" }
   ];
 })(window.LX);
+
+/* ---------------------------------------------------------------------------
+   Tasks, themes, Home layout and sleep shortcuts.
+--------------------------------------------------------------------------- */
+(function (LX) {
+  "use strict";
+
+  /* Three levels on purpose: five-level scales stop getting used. */
+  LX.TASK_URGENCY = {
+    high:   { name: "High",   rank: 0, color: "--danger" },
+    medium: { name: "Medium", rank: 1, color: "--warn" },
+    low:    { name: "Low",    rank: 2, color: "--ink-4" }
+  };
+
+  /* A repeating task is done once, kept as a finished task, and the next one
+     is created with the next date — so every completion stays in the record. */
+  LX.TASK_REPEAT = {
+    none:     "Does not repeat",
+    daily:    "Every day",
+    weekdays: "Every weekday (Mon–Fri)",
+    weekly:   "Every week",
+    monthly:  "Every month"
+  };
+
+  /* Colour themes. Each only changes the main colour; the rest of the
+     palette is shared, so nothing else about the look moves. */
+  LX.THEMES = [
+    { key: "teal",   name: "Teal",   swatch: "#16665A" },
+    { key: "ocean",  name: "Ocean",  swatch: "#1D5FD1" },
+    { key: "sunset", name: "Sunset", swatch: "#C2410C" },
+    { key: "violet", name: "Violet", swatch: "#6D3FD1" },
+    { key: "mono",   name: "Mono",   swatch: "#111111" }
+  ];
+
+  /* Everything Home can show, in its default order. Each can be switched off
+     or moved under More → Home screen. */
+  LX.HOME_CARDS = [
+    { key: "quick",    name: "Quick actions",         hint: "Log activity, food, workout, sleep, or start a timer" },
+    { key: "stats",    name: "Today at a glance",     hint: "Sleep, exercise, calories and protein — tap one to log it" },
+    { key: "tasks",    name: "Today's tasks",         hint: "Tick tasks off, or add one in a line" },
+    { key: "checkin",  name: "Mood & energy",         hint: "Two taps to record how today feels" },
+    { key: "weekly",   name: "Weekly goals",          hint: "What is still pending this week" },
+    { key: "day",      name: "Where the day went",    hint: "The 24-hour ribbon and time by category" },
+    { key: "logged",   name: "Logged today",          hint: "Every activity and workout recorded today" },
+    { key: "strength", name: "Strength & performance", hint: "Your tests and personal bests" },
+    { key: "review",   name: "Daily review",          hint: "The button to write today's reflection" }
+  ];
+
+  /* Long durations for the Sleep category, instead of 15 minutes to 2 hours. */
+  LX.SLEEP_PRESETS = [360, 390, 420, 450, 480];
+})(window.LX);
