@@ -381,6 +381,13 @@
       stat("Day streak", LX.num(tr.run), "best " + tr.best + (tr.best === 1 ? " day" : " days")) +
       stat("On time", tr.onTimeRate === null ? "—" : tr.onTimeRate + "<small>%</small>", "of tasks that had a date") +
       "</div>";
+    var perDay = {};
+    finished.forEach(function (t) { if (t.completed_date) perDay[t.completed_date] = (perDay[t.completed_date] || 0) + 1; });
+    var cal = [];
+    for (var d = LX.D.add(today, -111); d <= today; d = LX.D.add(d, 1)) cal.push({ date: d, value: perDay[d] || 0 });
+    html += '<div class="card"><div class="card-head"><h2>Your record</h2><span class="small muted">last 16 weeks</span></div>' +
+      LX.charts.heatmap(cal, { fmt: function (v) { return v + (v === 1 ? " task" : " tasks"); }, aria: "Tasks finished per day",
+        caption: "each square is a day" }) + "</div>";
     html += '<div class="card"><div class="card-head"><h2>Finished per week</h2><span class="small muted">last 12 weeks</span></div>' +
       LX.charts.bars({
         // every third week is labelled so the dates stay readable on a phone

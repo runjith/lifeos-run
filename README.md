@@ -54,7 +54,7 @@ window.LX.CONFIG = {
 };
 ```
 
-5. Re-upload the folder. In the app: **More → Sign in or create an account**.
+5. Re-upload the folder. In the app: **Settings → Sign in or create an account**.
 
 Two warnings worth taking seriously:
 
@@ -116,7 +116,7 @@ breaking the data.
 - **Health** — Workout, Insights, Tests, Weekly, Food, Sleep, Weight, Body. Each
   with its own log, history and charts.
 - **Progress** — 7 / 30 / 90 / 365 days across Time, Body, Fitness, Nutrition.
-- **More** — account and sync, JSON import, data and backup, goals, categories,
+- **Settings** (the gear, top right) — account and sync, JSON import, data and backup, goals, categories,
   appearance, schema reference.
 
 ### The 24-hour rule
@@ -354,7 +354,7 @@ overdue at the top), **Upcoming**, **Someday** (no date) and **Finished**.
 
 ## 4e. Home, themes, meals and backups
 
-**Home is made of cards** you choose and order under **More → Home screen**:
+**Home is made of cards** you choose and order under **Settings → Home screen**:
 quick actions, today at a glance (tap a tile to log it), today's tasks, mood &
 energy, weekly goals, where the day went, logged today, strength, and the daily
 review. A line at the top says what matters right now.
@@ -364,8 +364,11 @@ daily review. Both are stored with that day's review.
 
 **Appearance** has four modes (Auto, Light, Dark, and Black for OLED phone
 screens), five colour themes (Teal, Ocean, Sunset, Violet, Mono) and a colour
-strength switch: **Vivid** (stronger category, chart and progress colours) or
-**Soft** (the original calmer look). The phone's status bar follows the choice.
+strength switch (**Vivid** or **Soft**). A theme is a complete colour set, not
+just one colour: the page tint, progress bars (with a gradient), main buttons,
+selected buttons and tabs, every chart, the day ribbon and all category colours
+change together, in light and dark; the page background stays neutral. Teal keeps the original colours. Soft mutes
+the chart and bar colours of whichever theme is on. The phone's status bar follows.
 
 **Saved meals.** On the Food tab, "Save as meal" under any meal with two or more
 foods stores it. The food sheet then offers it as one tap, along with "Same
@@ -376,7 +379,7 @@ editing and totals work exactly as usual.
 time and work the bedtime back from it. Logging the Sleep category as an
 activity offers the same long durations instead of 15 minutes to 2 hours.
 
-**Backups.** More → Data & backup → **Share backup** opens the phone's share
+**Backups.** Settings → Data & backup → **Share backup** opens the phone's share
 sheet, so a backup can go straight to Google Drive, Files or email. The app
 remembers when a backup last left the device, and Home shows a reminder once it
 has been more than a week. The Supabase free plan keeps no backups of its own,
@@ -392,9 +395,26 @@ cache, the backup format — deliberately stayed the same, so nothing stored was
 touched by the rename, and backups from before it restore normally.
 
 
+---
+
+## 4f. Charts
+
+Bar colours carry meaning. On a chart with a goal, a bar that reaches it is full
+colour, one within 75% is lighter and one well short is faint; for calories
+(a target rather than a minimum) more than 10% over turns red. A small key under
+each goal chart explains the colours. Charts without a goal show a dashed
+average line instead. The latest bar always carries its value.
+
+Donut charts show shares: where tracked time went (Progress → Time), where
+calories come from (Progress → Nutrition, and today's split on Health → Food).
+Calendar charts show consistency: exercise days (Progress → Fitness — a month
+calendar for short ranges, weeks in columns for long ones) and tasks finished
+per day (Tasks → Finished, last 16 weeks).
+
+
 ## 5. Import a day as JSON
 
-**More → Import JSON.** Paste, tap Validate, read the preview, tap Import.
+**Settings → Import JSON.** Paste, tap Validate, read the preview, tap Import.
 Nothing is written until you confirm. Errors say what is wrong; warnings say what
 the app will do about it (for example filling in calories for a food it knows).
 
@@ -432,7 +452,7 @@ A prompt that works with any assistant:
 
 ## 6. Backup and restore
 
-**More → Data & backup.**
+**Settings → Data & backup.**
 
 - **Download full backup (JSON)** — every record, including performance tests and
   their results, deleted rows, and your settings. This file alone can rebuild the app anywhere.

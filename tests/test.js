@@ -807,6 +807,14 @@ function assert(cond, msg) {
   assert(h.indexOf("Today\u2019s tasks") > -1 && !!document.querySelector("#view [data-task-quick]"), "Home shows today's tasks with a quick add");
   assert(h.indexOf("How\u2019s today?") > -1, "Home has the mood and energy check-in");
   assert(!!document.querySelector('#view button.stat[data-quick="sleep"]'), "the stat tiles are tappable");
+  assert(document.querySelectorAll("#view .stats.mini .stat").length === 4, "the four tiles sit in one compact row");
+  assert(document.querySelector('#view .stat[data-quick="sleep"]').innerHTML.indexOf('<path d="M12 12') === -1 &&
+    !document.querySelector("#view .stat .row-between"), "tiles carry their own icon, not a plus");
+  assert(!document.querySelector('#tabbar [data-tab="more"]'), "More has left the bottom row");
+  assert(document.querySelectorAll("#tabbar button").length === 5, "the bottom row has five tabs");
+  document.getElementById("settings-btn").click(); await wait(60);
+  assert(document.getElementById("app-title").textContent === "Settings", "the gear at the top opens Settings");
+  await LX.app.go("home"); await wait(40);
   assert(h.indexOf("NaN") === -1 && h.indexOf("undefined") === -1, "Home output is clean");
 
   // check-in straight from Home
@@ -923,8 +931,12 @@ function assert(cond, msg) {
   console.log("\n-- backups --");
   await LX.db.setKV("last_backup", null);
   assert((await LX.exporter.daysSinceBackup()) === null, "no backup yet reads as never");
-  await LX.app.go("home"); await wait(40);
-  assert(html().indexOf("data-backup-now") > -1, "Home nudges when there has never been a backup");
+  await LX.app.go("home"); await wait(60);
+  assert(html().indexOf("data-backup-now") === -1 && html().indexOf("No backup yet") === -1, "Home stays clear of reminders");
+  assert(!document.getElementById("alert-dot").classList.contains("hidden"), "the gear shows a dot when there is an alert");
+  await LX.app.go("more"); await wait(60);
+  assert(html().indexOf("Alerts") > -1 && html().indexOf("No backup yet") > -1, "the backup reminder sits under Settings → Alerts");
+  assert(!!document.querySelector('#view [data-alert-dismiss="backup"]'), "with an X to hide it");
   const prepared = await LX.exporter.prepareShare();
   assert(prepared.file.name.indexOf("runos-backup-") === 0 && JSON.parse(prepared.text).data.tasks.length > 0,
     "the shared file is a full backup, tasks included");
@@ -934,8 +946,17 @@ function assert(cond, msg) {
   const res = await LX.exporter.share(prepared);
   assert(res === "downloaded", "without a share sheet the backup downloads instead (" + res + ")");
   assert((await LX.exporter.daysSinceBackup()) === 0, "and the backup is recorded as done today");
-  await LX.app.refresh(); await wait(40);
-  assert(html().indexOf("data-backup-now") === -1, "the nudge goes away once backed up");
+  await LX.app.go("more"); await wait(60);
+  assert(html().indexOf("No backup yet") === -1, "the alert goes away once backed up");
+  assert(document.getElementById("alert-dot").classList.contains("hidden"), "and so does the dot on the gear");
+  // the X hides an alert for a week
+  await LX.db.setKV("last_backup", null);
+  await LX.app.refresh(); await wait(60);
+  document.querySelector('#view [data-alert-dismiss="backup"]').click();
+  await wait(120);
+  assert(html().indexOf("No backup yet") === -1, "tapping X hides the alert");
+  assert((await LX.db.getKV("alert_hide_backup", null)) === LX.D.add(today, 7), "for one week");
+  await LX.exporter.markBackup();
 
   // a phone that can share opens the share sheet with the file
   let sharedWith = null;
@@ -972,6 +993,49 @@ function assert(cond, msg) {
     assert(hh.length > 300 && hh.indexOf("NaN") === -1, key + " renders at the end of the run");
   }
 
+  }
+
+
+  { // ---------------------------------------------------------------- charts
+    console.log("\n-- charts --");
+    const C = LX.charts;
+    const html = () => document.getElementById("view").innerHTML;
+    const g = C.bars({ labels: ["a", "b", "c", "d"], values: [100, 80, 40, 120], goal: 100, color: "--c-sleep", fmt: x => String(x) });
+    const ops = [...g.matchAll(/fill-opacity:([0-9.]+)/g)].map(m => Number(m[1]));
+    assert(ops[0] === 1 && ops[3] === 1, "bars that reach the goal are full colour");
+    assert(ops[1] === 0.6 && ops[2] === 0.32, "close bars are lighter and short ones faint");
+    assert(g.indexOf("Goal reached") > -1 && g.indexOf("chart-key") > -1, "a goal chart explains its colours");
+    assert(g.indexOf('class="bar-label"') > -1 && g.indexOf(">120<") > -1, "the latest bar shows its value");
+    const tg = C.bars({ labels: ["a", "b", "c"], values: [2600, 2000, 1500], goal: 2200, goalMode: "target" });
+    assert(tg.indexOf("--danger") > -1 && tg.indexOf("On target") > -1, "going well over a target turns red");
+    const lim = C.bars({ labels: ["a", "b"], values: [60, 120], goal: 90, goalMode: "atMost" });
+    assert(lim.indexOf("--danger") > -1 && lim.indexOf("Within limit") > -1, "going over a limit turns red");
+    const ng = C.bars({ labels: ["a", "b", "c", "d"], values: [1, 2, 3, 4] });
+    assert(ng.indexOf("avg-line") > -1 && ng.indexOf("chart-key") === -1, "without a goal there is an average line instead");
+    const dn = C.donut([{ name: "Work", value: 30, color: "--c-work" }, { name: "Sleep", value: 70, color: "--c-sleep" }], { center: "10h" });
+    assert((dn.match(/donut-seg/g) || []).length === 2 && dn.indexOf("70%") > -1 && dn.indexOf("30%") > -1, "the donut shows each share as a percentage");
+    const leg = dn.slice(dn.indexOf("donut-legend"));
+    assert(leg.indexOf("Sleep") < leg.indexOf("Work"), "the biggest share is listed first");
+    assert(C.donut([{ name: "x", value: 0, color: "--c-work" }], { empty: "Nothing yet" }).indexOf("Nothing yet") > -1, "an empty donut says so");
+    const days = []; for (let i = 27; i >= 0; i--) days.push({ date: LX.D.add(today, -i), value: i % 3 ? 0 : 5 });
+    const hm = C.heatmap(days, {});
+    assert((hm.match(/heat-cell/g) || []).length >= 28 && hm.indexOf("Less") > -1, "the calendar has a square per day and a key");
+    assert(hm.indexOf("stroke:var(--ink)") > -1, "today is outlined");
+
+    await LX.app.go("progress"); await wait(80);
+    document.querySelector('#view [data-section="time"]').click(); await wait(100);
+    assert(html().indexOf("Where the time went") > -1 && html().indexOf("donut-seg") > -1, "Progress shows the time donut");
+    document.querySelector('#view [data-section="nutrition"]').click(); await wait(100);
+    assert(html().indexOf("Where calories come from") > -1, "Progress → Nutrition shows where calories come from");
+    document.querySelector('#view [data-section="fitness"]').click(); await wait(100);
+    assert(html().indexOf("Exercise days") > -1 && html().indexOf("heat-cell") > -1, "Progress → Fitness shows the exercise calendar");
+    document.querySelector('#view [data-section="time"]').click(); await wait(60);
+    LX.screens.tasks.setView("finished"); await LX.app.go("tasks"); await wait(60);
+    assert(html().indexOf("Your record") > -1 && html().indexOf("heat-cell") > -1, "Finished shows the record calendar");
+    LX.screens.tasks.setView("today");
+    LX.screens.health.setTab("nutrition"); await LX.app.go("health"); await wait(60);
+    assert(html().indexOf("kcal today") > -1, "the Food tab splits today's calories by macro");
+    assert(html().indexOf("NaN") === -1, "chart output is clean");
   }
 
   console.log(process.exitCode ? "\nFAILURES ABOVE" : "\nAll checks passed");

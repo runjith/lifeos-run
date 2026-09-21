@@ -57,6 +57,14 @@
       stat("Entertainment", hrs(t.entertainment), LX.fmtDur(t.entertainment / n) + " a day") +
       stat("Untracked", hrs(t.untracked), Math.round((t.untracked / (1440 * n)) * 100) + "% of the period") +
       "</div>" +
+      '<div class="card"><div class="card-head"><h2>Where the time went</h2><span class="small muted">average day</span></div>' +
+      charts.donut(["productive", "exercise", "personal", "chores", "entertainment", "sleep"].map(function (k) {
+        return { name: LX.BUCKETS[k].name, color: LX.BUCKETS[k].color,
+                 value: LX.sum(sum.days, function (d) { return d.buckets[k] || 0; }) };
+      }), {
+        center: LX.fmtDur(LX.sum(sum.days, function (d) { return d.tracked; }) / n), centerLabel: "tracked a day",
+        fmt: function (m) { return LX.fmtDur(m / n); }, aria: "Share of tracked time", empty: "No time tracked in this period."
+      }) + "</div>" +
       '<div class="card"><div class="card-head"><h2>Every day, stacked</h2></div>' +
       charts.stackedDays(sum.days, keys) +
       charts.legend(keys.map(function (k) { return { name: LX.BUCKETS[k].name, color: LX.BUCKETS[k].color }; })) +
@@ -151,6 +159,13 @@
         values: wkKeys.map(function (k) { return weekly[k].vol; }),
         color: "--c-exercise", fmt: function (x) { return LX.num(x / 1000, 1) + "t"; }, aria: "Weekly volume"
       }) + "</div>" +
+      (sum.days.length >= 28 ? '<div class="card"><div class="card-head"><h2>Exercise days</h2>' +
+        '<span class="small muted">' + sum.days.filter(function (d) { return d.buckets.exercise > 0 || d.workouts > 0; }).length +
+        " of " + sum.days.length + " days</span></div>" +
+        charts.heatmap(sum.days.map(function (d) {
+          return { date: d.date, value: Math.max(d.buckets.exercise || 0, d.workouts ? 30 : 0) };
+        }), { color: "--c-exercise", fmt: function (m) { return m ? LX.fmtDur(m) : "rest"; }, aria: "Exercise days", caption: "darker = longer" }) +
+        "</div>" : "") +
       '<div class="card"><div class="card-head"><h2>Sessions per week</h2></div>' +
       charts.plot({
         style: LX.chartStyle(),
@@ -176,13 +191,20 @@
       stat("Average protein", logged.length ? LX.num(sum.averages.protein) + "<small>g</small>" : "—",
         "Goal " + LX.num(store.goal("protein_g") || 0) + "g") +
       "</div>" +
+      (logged.length ? '<div class="card"><div class="card-head"><h2>Where calories come from</h2><span class="small muted">average day</span></div>' +
+        charts.donut([
+          { name: "Protein", color: "--c-personal", value: LX.sum(logged, function (d) { return d.protein * 4; }) / logged.length },
+          { name: "Carbs", color: "--c-cooking", value: LX.sum(logged, function (d) { return d.carbs * 4; }) / logged.length },
+          { name: "Fat", color: "--c-exercise", value: LX.sum(logged, function (d) { return d.fat * 9; }) / logged.length }
+        ], { center: LX.num(sum.averages.calories), centerLabel: "kcal a day", fmt: function (k) { return LX.num(k) + " kcal"; },
+             aria: "Calories by macro" }) + "</div>" : "") +
       '<div class="card"><div class="card-head"><h2>Calories</h2>' + charts.styleToggle(LX.chartStyle()) + "</div>" +
       charts.plot({
         style: LX.chartStyle(),
         labels: sum.days.map(function (d) { return LX.D.short(d.date); }),
         values: sum.days.map(function (d) { return d.calories; }),
         picks: sum.days.map(function (d) { return d.date; }),
-        goal: store.goal("calories_kcal"), color: "--c-cooking",
+        goal: store.goal("calories_kcal"), goalMode: "target", color: "--c-cooking",
         fmt: function (x) { return LX.num(x); }, aria: "Calories per day"
       }) +
       '<p class="hint">Days with no food logged show as zero. Tap a day to see the meals.</p></div>' +

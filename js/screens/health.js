@@ -195,13 +195,19 @@
           ["carbs", "fat", "fiber"].map(function (k) {
             return "<span>" + k.charAt(0).toUpperCase() + k.slice(1) + " <b style='font-weight:600;margin-left:3px'>" +
               LX.num(n[k], 0) + "g</b></span>";
-          }).join("") + "</div></div>";
+          }).join("") + "</div>" +
+          (n.calories ? '<div style="margin-top:16px">' + LX.charts.donut([
+            { name: "Protein", color: "--c-personal", value: n.protein * 4 },
+            { name: "Carbs", color: "--c-cooking", value: n.carbs * 4 },
+            { name: "Fat", color: "--c-exercise", value: n.fat * 9 }
+          ], { center: LX.num(n.calories), centerLabel: "kcal today", fmt: function (k) { return LX.num(k) + " kcal"; },
+               aria: "Today's calories by macro" }) + "</div>" : "") + "</div>";
 
         html += '<div class="card"><div class="card-head"><h2>Last 7 days</h2></div>' +
           charts.bars({
             labels: week.days.map(function (d) { return LX.D.weekdayLetter(d.date); }),
             values: week.days.map(function (d) { return d.calories; }),
-            goal: kcalGoal, color: "--c-cooking", fmt: function (x) { return LX.num(x); }, aria: "Calories per day"
+            goal: kcalGoal, goalMode: "target", color: "--c-cooking", fmt: function (x) { return LX.num(x); }, aria: "Calories per day"
           }) +
           '<p class="hint">Average ' + LX.num(week.averages.calories) + " kcal and " +
           LX.num(week.averages.protein) + "g protein on days you logged food.</p></div>";
@@ -227,7 +233,7 @@
                 LX.icon("plus") + " Save as meal</button></div>" : "") + "</div>";
           }).join("");
         } else {
-          html += ui.empty("Nothing logged today", "Log a meal, or paste a day from your notes under More → Import JSON.");
+          html += ui.empty("Nothing logged today", "Log a meal, or paste a day from your notes under Settings → Import JSON.");
         }
         if (s.foods.length) html += '<p class="hint">Tap any entry to correct it — change 1 egg to 4 and the calories and macros follow. ' +
           "Save a meal you eat often and it becomes one tap in the food sheet.</p>";
@@ -280,7 +286,7 @@
           stat("Last night", last ? LX.fmtDur(last.duration_minutes) : "—", last ? LX.D.relative(last.date) : "Not logged") +
           stat("7-day average", avg7 ? LX.fmtDur(avg7) : "—", "Nights logged only") +
           stat("30-day average", avg30 ? LX.fmtDur(avg30) : "—", "Nights logged only") +
-          stat("Goal", goal ? LX.fmtDur(goal) : "—", "Set under More → Goals") +
+          stat("Goal", goal ? LX.fmtDur(goal) : "—", "Set under Settings → Goals") +
           "</div>" +
           '<div class="card"><div class="card-head"><h2>Last 14 nights</h2></div>' +
           charts.bars({

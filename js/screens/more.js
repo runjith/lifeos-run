@@ -5,14 +5,16 @@
   LX.screens = LX.screens || {};
 
   LX.screens.more = {
-    title: function () { return "More"; },
+    title: function () { return "Settings"; },
     subtitle: function () { return cloud.statusText(); },
     render: function (el) {
-      return exporter.counts().then(function (counts) {
+      return Promise.all([exporter.counts(), LX.alerts.list()]).then(function (r0) {
+        var counts = r0[0], alerts = r0[1];
         var total = Object.keys(counts).reduce(function (a, k) { return a + counts[k]; }, 0);
         var user = cloud.user();
 
         el.innerHTML =
+          alertsCard(alerts) +
           accountCard(user) +
           group("Your data", [
             row("import", "upload", "Import JSON", "Paste a day from your notes or ChatGPT"),
@@ -32,6 +34,12 @@
           '<p class="hint" style="text-align:center">RunOS keeps your data on this device first. Nothing leaves it unless you connect an account.</p>';
 
         LX.on(el, "click", "[data-more]", function (e, t) { open(t.dataset.more); });
+        LX.on(el, "click", "[data-alert-dismiss]", function (e, t) {
+          LX.alerts.dismiss(t.dataset.alertDismiss).then(function () {
+            ui.toast("Hidden for a week");
+            LX.app.refresh();
+          });
+        });
       });
     }
   };
@@ -41,6 +49,46 @@
     var mode = t === "system" ? "Automatic" : t === "black" ? "Pure black" : t === "dark" ? "Dark" : "Light";
     var th = LX.THEMES.find(function (x) { return x.key === (store.settings.accent || "teal"); }) || LX.THEMES[0];
     return mode + " · " + th.name + " · " + (store.settings.vivid === false ? "Soft" : "Vivid") + " colours";
+  }
+
+  /* ---------------- alerts ----------------
+     Things that need a look. They live here rather than on Home; a dot on the
+     gear at the top shows when there is one. The X hides an alert for a week. */
+  var alerts = {};
+  alerts.list = function () {
+    return Promise.all([exporter.daysSinceBackup(), exporter.counts(), db.getKV("alert_hide_backup", null)])
+      .then(function (r) {
+        var days = r[0], counts = r[1], hiddenUntil = r[2];
+        // only things you logged count — not the starter lists the app comes with
+        var starter = ["categories", "exercises", "strength_tests", "weekly_goals", "goals"];
+        var mine = Object.keys(counts).reduce(function (a, k) { return starter.indexOf(k) >= 0 ? a : a + counts[k]; }, 0);
+        var out = [];
+        var hidden = hiddenUntil && hiddenUntil > LX.D.today();
+        if (!hidden && mine > 20 && (days === null || days > 7)) {
+          out.push({
+            key: "backup", icon: "share", action: "backup", actionLabel: "Back up now",
+            title: days === null ? "No backup yet" : "Last backup " + days + " days ago",
+            text: "Share one to Google Drive — it takes ten seconds."
+          });
+        }
+        return out;
+      });
+  };
+  alerts.dismiss = function (key) {
+    return db.setKV("alert_hide_" + key, LX.D.add(LX.D.today(), 7));
+  };
+  LX.alerts = alerts;
+
+  function alertsCard(list) {
+    if (!list.length) return "";
+    return '<div><div class="section-title" style="margin-bottom:10px">Alerts</div><div class="card flush"><div class="list">' +
+      list.map(function (a) {
+        return '<div class="list-row">' + LX.icon(a.icon) +
+          '<span class="grow"><span class="primary">' + LX.esc(a.title) + '</span><br><span class="secondary">' +
+          LX.esc(a.text) + "</span></span>" +
+          '<button class="btn btn-sm btn-primary" data-more="' + a.action + '">' + LX.esc(a.actionLabel) + "</button>" +
+          '<button class="icon-btn" data-alert-dismiss="' + a.key + '" aria-label="Hide for a week">' + LX.icon("x") + "</button></div>";
+      }).join("") + "</div></div></div>";
   }
 
   function accountCard(user) {
@@ -420,14 +468,17 @@
         '<div class="section-title" style="font-size:1rem;margin:0">Colour theme</div>' +
         '<div class="theme-swatches">' + LX.THEMES.map(function (t) {
           return '<button data-accent="' + t.key + '" aria-pressed="' + ((store.settings.accent || "teal") === t.key) + '">' +
-            '<span class="dot" style="background:' + t.swatch + '"></span>' + t.name + "</button>";
+            '<span class="dot" style="background:linear-gradient(135deg,' + t.preview[0] + "," + t.preview[1] + ')"></span>' +
+            '<span class="mini-pal">' + t.preview.slice(2).map(function (c) {
+              return '<i style="background:' + c + '"></i>';
+            }).join("") + "</span>" + t.name + "</button>";
         }).join("") + "</div>" +
         '<div class="section-title" style="font-size:1rem;margin:0">Colour strength</div>' +
         '<div class="segmented">' + [["vivid", "Vivid"], ["soft", "Soft"]].map(function (t) {
           var on = (store.settings.vivid !== false) === (t[0] === "vivid");
           return '<button data-vivid="' + t[0] + '" aria-pressed="' + on + '">' + t[1] + "</button>";
         }).join("") + "</div>" +
-        '<p class="hint">Vivid makes the category colours, charts and progress bars stronger. Soft is the original calmer look.</p>' +
+        '<p class="hint">A theme recolours everything: bars, charts, the day ribbon, buttons and tabs. Vivid shows those colours at full strength; Soft mutes them.</p>' +
         ui.field("Weight unit", ui.select("weight", ["kg", "lb"], store.settings.units.weight)) +
         ui.field("Measurement unit", ui.select("length", ["cm", "in"], store.settings.units.length)),
       footer: '<button class="btn btn-block" data-close>Done</button>',

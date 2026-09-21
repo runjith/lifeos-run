@@ -10,9 +10,9 @@
     { key: "tasks", label: "Tasks", icon: "tasks" },
     { key: "time", label: "Time", icon: "clock" },
     { key: "health", label: "Health", icon: "health" },
-    { key: "progress", label: "Progress", icon: "progress" },
-    { key: "more", label: "More", icon: "more" }
+    { key: "progress", label: "Progress", icon: "progress" }
   ];
+  // Settings (the "more" screen) opens from the gear at the top, not the bottom row
 
   app.applyTheme = function () {
     var st = LX.store.settings || {};
@@ -27,7 +27,9 @@
     if (st.vivid !== false) root.setAttribute("data-vivid", ""); else root.removeAttribute("data-vivid");
     // the phone's own status bar follows the page colour
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", black ? "#000000" : (dark ? "#0B0D0C" : "#F3F4F3"));
+    var bg = "";
+    try { bg = getComputedStyle(root).getPropertyValue("--bg").trim(); } catch (e) {}
+    if (meta) meta.setAttribute("content", black ? "#000000" : (bg || (dark ? "#0B0D0C" : "#F3F4F3")));
   };
 
   /* Ask the browser to keep this app's data even when the device is short of
@@ -41,8 +43,17 @@
     } catch (e) { return Promise.resolve(false); }
   };
 
+  /** The small dot on the gear: something in Settings → Alerts needs a look. */
+  app.updateAlertDot = function () {
+    var dot = document.getElementById("alert-dot");
+    if (!dot || !LX.alerts) return Promise.resolve();
+    return LX.alerts.list().then(function (list) { dot.classList.toggle("hidden", !list.length); });
+  };
+
   app.go = function (key) {
     current = key;
+    var gearBtn = document.getElementById("settings-btn");
+    if (gearBtn) gearBtn.setAttribute("aria-pressed", key === "more");
     LX.$$("#tabbar button").forEach(function (b) {
       if (b.dataset.tab === key) b.setAttribute("aria-current", "page");
       else b.removeAttribute("aria-current");
@@ -77,6 +88,7 @@
       void viewEl.offsetWidth;
       viewEl.classList.add("fade-in");
       updatePill();
+      app.updateAlertDot();
     }).catch(function (e) {
       console.error(e);
       viewEl.innerHTML = '<div class="banner danger">' + LX.icon("alert") +
@@ -101,6 +113,11 @@
     titleEl = document.getElementById("app-title");
     subEl = document.getElementById("app-sub");
     pillEl = document.getElementById("sync-pill");
+    var gear = document.getElementById("settings-btn");
+    if (gear) {
+      gear.insertAdjacentHTML("afterbegin", LX.icon("gear"));
+      gear.addEventListener("click", function () { app.go("more"); });
+    }
 
     var bar = document.getElementById("tabbar");
     bar.innerHTML = TABS.map(function (t) {

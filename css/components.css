@@ -398,3 +398,69 @@ body.has-timer .view { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inse
 .stat.tap { cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; }
 .stat.tap:active { transform: scale(.98); }
 .greeting { font: var(--t-h2); margin: 0; }
+
+/* ---------------------------------------------------------------------------
+   Settings in the top bar, and compact Home tiles
+--------------------------------------------------------------------------- */
+.settings-btn { position: relative; margin-left: 6px; }
+.settings-btn[aria-pressed="true"] { color: var(--accent); }
+.alert-dot {
+  position: absolute; top: 6px; right: 6px; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--danger); box-shadow: 0 0 0 2px var(--bg);
+}
+.stats.mini { grid-template-columns: repeat(4, 1fr); gap: var(--s2); }
+.stat.mini { padding: 10px 8px 12px; border-radius: var(--r-md); min-width: 0; }
+.stat.mini .label { display: flex; align-items: center; gap: 3px; margin-bottom: 4px; font: var(--t-micro); letter-spacing: -.01em; color: var(--ink-3); white-space: nowrap; overflow: hidden; }
+.stat.mini .label svg { width: 13px; height: 13px; flex: none; color: var(--accent); }
+.stat.mini .metric { font: 650 1.05rem/1.2 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat.mini .metric small { font-size: .7em; margin-left: 1px; }
+.stat.mini .bar { height: 4px; margin-top: 8px; }
+
+/* ---------------------------------------------------------------------------
+   Themes reach everything: gradients on bars and main buttons, selected states
+   in the theme colour, a soft wash of it behind the top of every screen.
+--------------------------------------------------------------------------- */
+.bar > span { background: linear-gradient(90deg, var(--accent), var(--accent-2, var(--accent))); }
+.btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-2, var(--accent))); border-color: transparent; }
+.chip[aria-pressed="true"], .chip.is-on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.segmented button[aria-pressed="true"] {
+  background: var(--accent); color: var(--accent-ink);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.tabbar button[aria-current="page"] svg {
+  background: var(--accent-soft); border-radius: 999px; padding: 3px 12px; box-sizing: content-box;
+}
+.greeting {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2, var(--accent)));
+  -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 700;
+}
+.quick button svg, .list-row > svg:first-child { color: var(--accent); }
+.task-check.is-on { background: linear-gradient(135deg, var(--accent), var(--accent-2, var(--accent))); }
+.theme-swatches .dot { width: 30px; height: 30px; }
+.mini-pal { display: flex; gap: 3px; }
+.mini-pal i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+
+/* ---------------------------------------------------------------------------
+   Charts: value labels, average line, colour keys, donuts and calendars
+--------------------------------------------------------------------------- */
+.chart .bar-label { fill: var(--ink); font: 650 10px var(--font); }
+.chart .avg-line { stroke: var(--ink-4); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart-key { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 10px; font: var(--t-micro); color: var(--ink-3); }
+.chart-key span { display: inline-flex; align-items: center; gap: 5px; }
+.chart-key i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.chart-key .goal-dash { width: 14px; height: 0; border-radius: 0; border-top: 2px dashed var(--ink-3); }
+.donut-wrap { display: grid; grid-template-columns: 132px 1fr; gap: 16px; align-items: center; }
+.donut { width: 132px; height: 132px; }
+.donut-center { fill: var(--ink); font: 700 17px var(--font); }
+.donut-legend { display: grid; gap: 8px; min-width: 0; }
+.dl-row { display: flex; align-items: center; gap: 8px; font: var(--t-small); min-width: 0; }
+.dl-row i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.dl-row .grow { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-row b { font-weight: 650; }
+.dl-row .dl-val { color: var(--ink-3); font: var(--t-micro); white-space: nowrap; }
+.heatmap { width: 100%; height: auto; display: block; max-width: 520px; }
+.heatmap.is-cal { max-width: 330px; margin: 0 auto; }
+.heatmap .heat-day { fill: var(--ink-2); font: 600 10px var(--font); pointer-events: none; }
+.donut-wrap { grid-template-columns: 118px 1fr; gap: 12px; }
+.donut { width: 118px; height: 118px; }
+.dl-row { gap: 6px; }

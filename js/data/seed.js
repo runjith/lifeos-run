@@ -192,18 +192,18 @@
     monthly:  "Every month"
   };
 
-  /* Colour themes. Each only changes the main colour; the rest of the
-     palette is shared, so nothing else about the look moves. */
+  /* Each theme recolours the whole app. `preview` is what the picker shows:
+     main colour, gradient colour, then three of its category colours. */
   LX.THEMES = [
-    { key: "teal",   name: "Teal",   swatch: "#16665A" },
-    { key: "ocean",  name: "Ocean",  swatch: "#1D5FD1" },
-    { key: "sunset", name: "Sunset", swatch: "#C2410C" },
-    { key: "violet", name: "Violet", swatch: "#6D3FD1" },
-    { key: "mono",   name: "Mono",   swatch: "#111111" }
+    { key: "teal", name: "Teal", swatch: "#16665A", preview: ["#16665A", "#2BA58A", "#1F6FB2", "#E4572E", "#4B4FD1"] },
+    { key: "ocean", name: "Ocean", swatch: "#1D5FD1", preview: ["#1D5FD1", "#12A4C9", "#22B490", "#2267B4", "#5022B4"] },
+    { key: "sunset", name: "Sunset", swatch: "#D4460F", preview: ["#D4460F", "#F2A20C", "#BA1C78", "#BA221C", "#BA861C"] },
+    { key: "violet", name: "Violet", swatch: "#6D3FD1", preview: ["#6D3FD1", "#D6336C", "#223FB4", "#7622B4", "#B42281"] },
+    { key: "mono", name: "Mono", swatch: "#111111", preview: ["#111111", "#6B6B6B", "#1F1F1F", "#565656", "#8D8D8D"] }
   ];
 
   /* Everything Home can show, in its default order. Each can be switched off
-     or moved under More → Home screen. */
+     or moved under Settings → Home screen. */
   LX.HOME_CARDS = [
     { key: "quick",    name: "Quick actions",         hint: "Log activity, food, workout, sleep, or start a timer" },
     { key: "stats",    name: "Today at a glance",     hint: "Sleep, exercise, calories and protein — tap one to log it" },

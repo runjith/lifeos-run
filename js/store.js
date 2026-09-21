@@ -454,6 +454,8 @@
           sleep: sleepRec ? sleepRec.duration_minutes : sleepFromActs,
           calories: LX.sum(dayFoods, function (f) { return f.calories; }),
           protein: LX.sum(dayFoods, function (f) { return f.protein; }),
+          carbs: LX.sum(dayFoods, function (f) { return f.carbs || 0; }),
+          fat: LX.sum(dayFoods, function (f) { return f.fat || 0; }),
           hasFood: dayFoods.length > 0,
           workouts: workouts.filter(function (w) { return w.date === day; }).length,
           weight: (weights.find(function (w) { return w.date === day; }) || {}).weight || null

@@ -77,7 +77,7 @@ Here is what I want to change:
 
 ## Before you start a change
 
-Take a backup: **More → Data & backup → Download full backup**. Ten seconds,
+Take a backup: **Settings → Data & backup → Download full backup**. Ten seconds,
 and it makes any mistake reversible.
 
 ## After you get the changed files
@@ -87,4 +87,4 @@ and it makes any mistake reversible.
 2. Make sure the version was bumped (`js/config.js`, `sw.js`, `version.txt`) —
    ask the assistant to do it if it didn't.
 3. Wait a minute, open the app, hard refresh (Ctrl+Shift+R), and check
-   **More → About** shows the new version number.
+   **Settings → About** shows the new version number.

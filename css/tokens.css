@@ -136,36 +136,353 @@ html[data-theme="dark"] {
 }
 
 /* ---------------------------------------------------------------------------
-   Colour themes (More → Appearance). Each swaps only the main colour.
+   Colour themes (Settings → Appearance). A theme is a complete colour set:
+   page tint, main and gradient colours, and every category colour — so bars,
+   charts, the day ribbon, selected buttons and tabs all move together.
+   Generated from /tmp/themes.py-style rules; Teal keeps the original colours.
 --------------------------------------------------------------------------- */
-html[data-accent="ocean"]  { --accent: #1D5FD1; --accent-soft: #E2EAFB; --accent-line: #B9CCF3; }
-html[data-accent="sunset"] { --accent: #C2410C; --accent-soft: #FCEBE2; --accent-line: #F3C6AE; }
-html[data-accent="violet"] { --accent: #6D3FD1; --accent-soft: #EEE7FB; --accent-line: #D2C3F3; }
-html[data-accent="mono"]   { --accent: #111111; --accent-soft: #ECECEC; --accent-line: #CFCFCF; }
 
-html[data-theme="dark"][data-accent="ocean"]  { --accent: #5B9BFF; --accent-ink: #061634; --accent-soft: #122441; --accent-line: #1E3A66; }
-html[data-theme="dark"][data-accent="sunset"] { --accent: #FF8A4C; --accent-ink: #2A1003; --accent-soft: #3A1D0E; --accent-line: #5C2D14; }
-html[data-theme="dark"][data-accent="violet"] { --accent: #A98BFF; --accent-ink: #1B0C3D; --accent-soft: #251A45; --accent-line: #3A2A6B; }
-html[data-theme="dark"][data-accent="mono"]   { --accent: #F2F2F2; --accent-ink: #0A0A0A; --accent-soft: #242424; --accent-line: #3A3A3A; }
+html[data-accent="teal"] {
+  --bg: #F3F4F3;
+  --surface-2: #F7F8F7;
+  --surface-sunk: #ECEEEC;
+  --line: #E2E5E3;
+  --line-strong: #CDD2CF;
+  --accent: #16665A;
+  --accent-2: #2BA58A;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E3EFEB;
+  --accent-line: #BBD7CF;
+  --ok: #16665A;
+  --c-work: #1F6FB2;
+  --c-exercise: #E4572E;
+  --c-boxing: #C0392B;
+  --c-walking: #2E9E4F;
+  --c-learning: #6C4AD6;
+  --c-reading: #8E5CF0;
+  --c-coding: #0F9D8A;
+  --c-business: #2F6FE0;
+  --c-cooking: #E0A100;
+  --c-chores: #7A7F6A;
+  --c-family: #E0457B;
+  --c-travel: #1C9BC7;
+  --c-personal: #4FA33A;
+  --c-entertain: #E08A1E;
+  --c-youtube: #E53935;
+  --c-social: #B0439C;
+  --c-sleep: #4B4FD1;
+  --c-other: #6E7682;
+  --c-untracked: #CBD0CD;
+}
 
-/* Pure black — for OLED phone screens. */
-html[data-theme="dark"][data-black] {
+html[data-theme="dark"][data-accent="teal"] {
+  --bg: #0B0D0C;
+  --surface: #151817;
+  --surface-2: #1B1F1D;
+  --surface-sunk: #101312;
+  --line: #232826;
+  --line-strong: #333937;
+  --accent: #4FBFA5;
+  --accent-2: #8FE3C8;
+  --accent-ink: #06211C;
+  --accent-soft: #13312B;
+  --accent-line: #1F4B42;
+  --ok: #4FBFA5;
+  --c-work: #4DA3FF;
+  --c-exercise: #FF7A45;
+  --c-boxing: #FF5A4A;
+  --c-walking: #4CD07A;
+  --c-learning: #9B7BFF;
+  --c-reading: #B79CFF;
+  --c-coding: #2FD3B8;
+  --c-business: #5C94FF;
+  --c-cooking: #FFC940;
+  --c-chores: #B9BCA8;
+  --c-family: #FF6FA3;
+  --c-travel: #3CC4F0;
+  --c-personal: #7CD65A;
+  --c-entertain: #FFA94D;
+  --c-youtube: #FF5C57;
+  --c-social: #E36BD0;
+  --c-sleep: #7A80FF;
+  --c-other: #B8BEC8;
+  --c-untracked: #2B302E;
+}
+
+html[data-accent="ocean"] {
+  --bg: #F3F4F3;
+  --surface-2: #F7F8F7;
+  --surface-sunk: #ECEEEC;
+  --line: #E2E5E3;
+  --line-strong: #CDD2CF;
+  --accent: #1D5FD1;
+  --accent-2: #12A4C9;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E1EDFB;
+  --accent-line: #BED3EF;
+  --ok: #1D5FD1;
+  --c-work: #22B490;
+  --c-entertain: #29BED6;
+  --c-exercise: #2267B4;
+  --c-personal: #2936D6;
+  --c-sleep: #5022B4;
+  --c-chores: #A329D6;
+  --c-boxing: #3EDAC8;
+  --c-walking: #1D999A;
+  --c-learning: #54B9DE;
+  --c-reading: #2685C5;
+  --c-coding: #3E73DA;
+  --c-business: #1D379A;
+  --c-cooking: #5B54DE;
+  --c-family: #4326C5;
+  --c-travel: #833EDA;
+  --c-youtube: #651D9A;
+  --c-social: #C754DE;
+  --c-other: #838795;
+  --c-untracked: #D3D5DF;
+}
+
+html[data-theme="dark"][data-accent="ocean"] {
+  --bg: #0B0D0C;
+  --surface: #151817;
+  --surface-2: #1B1F1D;
+  --surface-sunk: #101312;
+  --line: #232826;
+  --line-strong: #333937;
+  --accent: #6AA5FF;
+  --accent-2: #4FD6F0;
+  --accent-ink: #0A1729;
+  --accent-soft: #162436;
+  --accent-line: #294160;
+  --ok: #6AA5FF;
+  --c-work: #5AEDC8;
+  --c-entertain: #75DEF0;
+  --c-exercise: #5A9FED;
+  --c-personal: #757FF0;
+  --c-sleep: #885AED;
+  --c-chores: #CB75F0;
+  --c-boxing: #88F2E5;
+  --c-walking: #3EE8EA;
+  --c-learning: #9ADBF4;
+  --c-reading: #51ADEC;
+  --c-coding: #88ACF2;
+  --c-business: #3E62EA;
+  --c-cooking: #9F9AF4;
+  --c-family: #6D51EC;
+  --c-travel: #B788F2;
+  --c-youtube: #A03EEA;
+  --c-social: #E59AF4;
+  --c-other: #969AA6;
+  --c-untracked: #2D313E;
+}
+
+html[data-accent="sunset"] {
+  --bg: #F3F4F3;
+  --surface-2: #F7F8F7;
+  --surface-sunk: #ECEEEC;
+  --line: #E2E5E3;
+  --line-strong: #CDD2CF;
+  --accent: #D4460F;
+  --accent-2: #F2A20C;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #FBEBE1;
+  --accent-line: #EFD0BE;
+  --ok: #D4460F;
+  --c-work: #BA1C78;
+  --c-entertain: #DE2154;
+  --c-exercise: #BA221C;
+  --c-personal: #DE6421;
+  --c-sleep: #BA861C;
+  --c-chores: #DEDA21;
+  --c-boxing: #E13789;
+  --c-walking: #A0184B;
+  --c-learning: #E44E67;
+  --c-reading: #CC1E29;
+  --c-coding: #E15037;
+  --c-business: #A03A18;
+  --c-cooking: #E4934E;
+  --c-family: #CC801E;
+  --c-travel: #E1BA37;
+  --c-youtube: #A08F18;
+  --c-social: #D8E44E;
+  --c-other: #958883;
+  --c-untracked: #DFD6D3;
+}
+
+html[data-theme="dark"][data-accent="sunset"] {
+  --bg: #0B0D0C;
+  --surface: #151817;
+  --surface-2: #1B1F1D;
+  --surface-sunk: #101312;
+  --line: #232826;
+  --line-strong: #333937;
+  --accent: #FF8A4C;
+  --accent-2: #FFC94A;
+  --accent-ink: #29150A;
+  --accent-soft: #362216;
+  --accent-line: #603E29;
+  --ok: #FF8A4C;
+  --c-work: #F254B0;
+  --c-entertain: #F47194;
+  --c-exercise: #F25B54;
+  --c-personal: #F49F71;
+  --c-sleep: #F2BE54;
+  --c-chores: #F4F271;
+  --c-boxing: #F684BA;
+  --c-walking: #F0387D;
+  --c-learning: #F797A7;
+  --c-reading: #F14B55;
+  --c-coding: #F69484;
+  --c-business: #F06638;
+  --c-cooking: #F7C397;
+  --c-family: #F1A94B;
+  --c-travel: #F6DC84;
+  --c-youtube: #F0D938;
+  --c-social: #EFF797;
+  --c-other: #A69A96;
+  --c-untracked: #3E312D;
+}
+
+html[data-accent="violet"] {
+  --bg: #F3F4F3;
+  --surface-2: #F7F8F7;
+  --surface-sunk: #ECEEEC;
+  --line: #E2E5E3;
+  --line-strong: #CDD2CF;
+  --accent: #6D3FD1;
+  --accent-2: #D6336C;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #EBE1FB;
+  --accent-line: #D0BEEF;
+  --ok: #6D3FD1;
+  --c-work: #223FB4;
+  --c-entertain: #4929D6;
+  --c-exercise: #7622B4;
+  --c-personal: #D029D6;
+  --c-sleep: #B42281;
+  --c-chores: #D62956;
+  --c-boxing: #3E49DA;
+  --c-walking: #251D9A;
+  --c-learning: #8054DE;
+  --c-reading: #6D26C5;
+  --c-coding: #AC3EDA;
+  --c-business: #851D9A;
+  --c-cooking: #DE54D2;
+  --c-family: #C526A2;
+  --c-travel: #DA3E90;
+  --c-youtube: #9A1D4E;
+  --c-social: #DE5466;
+  --c-other: #928395;
+  --c-untracked: #DDD3DF;
+}
+
+html[data-theme="dark"][data-accent="violet"] {
+  --bg: #0B0D0C;
+  --surface: #151817;
+  --surface-2: #1B1F1D;
+  --surface-sunk: #101312;
+  --line: #232826;
+  --line-strong: #333937;
+  --accent: #A98BFF;
+  --accent-2: #FF7AA8;
+  --accent-ink: #150A29;
+  --accent-soft: #221636;
+  --accent-line: #3E2960;
+  --ok: #A98BFF;
+  --c-work: #5A77ED;
+  --c-entertain: #8C75F0;
+  --c-exercise: #AE5AED;
+  --c-personal: #EB75F0;
+  --c-sleep: #ED5AB9;
+  --c-chores: #F07595;
+  --c-boxing: #888FF2;
+  --c-walking: #483EEA;
+  --c-learning: #B69AF4;
+  --c-reading: #9651EC;
+  --c-coding: #D288F2;
+  --c-business: #CD3EEA;
+  --c-cooking: #F49AEC;
+  --c-family: #EC51C9;
+  --c-travel: #F288BF;
+  --c-youtube: #EA3E81;
+  --c-social: #F49AA6;
+  --c-other: #A396A6;
+  --c-untracked: #3B2D3E;
+}
+
+html[data-accent="mono"] {
+  --bg: #F3F4F3;
+  --surface-2: #F7F8F7;
+  --surface-sunk: #ECEEEC;
+  --line: #E2E5E3;
+  --line-strong: #CDD2CF;
+  --accent: #111111;
+  --accent-2: #6B6B6B;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #EEEEEE;
+  --accent-line: #D6D6D6;
+  --ok: #111111;
+  --c-work: #1F1F1F;
+  --c-entertain: #3A3A3A;
+  --c-exercise: #565656;
+  --c-personal: #717171;
+  --c-sleep: #8D8D8D;
+  --c-chores: #A8A8A8;
+  --c-boxing: #282828;
+  --c-walking: #313131;
+  --c-learning: #434343;
+  --c-reading: #4C4C4C;
+  --c-coding: #5F5F5F;
+  --c-business: #686868;
+  --c-cooking: #7A7A7A;
+  --c-family: #848484;
+  --c-travel: #969696;
+  --c-youtube: #9F9F9F;
+  --c-social: #B1B1B1;
+  --c-other: #8C8C8C;
+  --c-untracked: #D9D9D9;
+}
+
+html[data-theme="dark"][data-accent="mono"] {
+  --bg: #0B0D0C;
+  --surface: #151817;
+  --surface-2: #1B1F1D;
+  --surface-sunk: #101312;
+  --line: #232826;
+  --line-strong: #333937;
+  --accent: #F2F2F2;
+  --accent-2: #9A9A9A;
+  --accent-ink: #0A0A0A;
+  --accent-soft: #262626;
+  --accent-line: #454545;
+  --ok: #F2F2F2;
+  --c-work: #616161;
+  --c-entertain: #797979;
+  --c-exercise: #909090;
+  --c-personal: #A8A8A8;
+  --c-sleep: #C0C0C0;
+  --c-chores: #D7D7D7;
+  --c-boxing: #696969;
+  --c-walking: #717171;
+  --c-learning: #818181;
+  --c-reading: #888888;
+  --c-coding: #989898;
+  --c-business: #A0A0A0;
+  --c-cooking: #B0B0B0;
+  --c-family: #B8B8B8;
+  --c-travel: #C8C8C8;
+  --c-youtube: #D0D0D0;
+  --c-social: #DFDFDF;
+  --c-other: #9E9E9E;
+  --c-untracked: #363636;
+}
+
+/* Pure black — for OLED phone screens. Keeps the theme's colours, drops the tint. */
+html[data-theme="dark"][data-black][data-accent] {
   --bg: #000000; --surface: #0C0C0C; --surface-2: #131313; --surface-sunk: #050505;
   --line: #1E1E1E; --line-strong: #2C2C2C;
 }
 
-/* Vivid — stronger category, chart and progress colours. */
-html[data-vivid] {
-  --c-work: #1F6FB2;     --c-exercise: #E4572E; --c-boxing: #C0392B;  --c-walking: #2E9E4F;
-  --c-learning: #6C4AD6; --c-reading: #8E5CF0;  --c-coding: #0F9D8A;  --c-business: #2F6FE0;
-  --c-cooking: #E0A100;  --c-chores: #7A7F6A;   --c-family: #E0457B;  --c-travel: #1C9BC7;
-  --c-personal: #4FA33A; --c-entertain: #E08A1E; --c-youtube: #E53935; --c-social: #B0439C;
-  --c-sleep: #4B4FD1;    --c-other: #6E7682;
-}
-html[data-theme="dark"][data-vivid] {
-  --c-work: #4DA3FF;     --c-exercise: #FF7A45; --c-boxing: #FF5A4A;  --c-walking: #4CD07A;
-  --c-learning: #9B7BFF; --c-reading: #B79CFF;  --c-coding: #2FD3B8;  --c-business: #5C94FF;
-  --c-cooking: #FFC940;  --c-chores: #B9BCA8;   --c-family: #FF6FA3;  --c-travel: #3CC4F0;
-  --c-personal: #7CD65A; --c-entertain: #FFA94D; --c-youtube: #FF5C57; --c-social: #E36BD0;
-  --c-sleep: #7A80FF;    --c-other: #B8BEC8;
-}
+/* Soft — the same theme, calmer: colours in bars, charts and the ribbon are muted. */
+html:not([data-vivid]) :is(.ribbon-seg, .chart .bar-rect, .chart .line-path, .chart .line-area, .chart .point,
+  .bar > span, .swatch, .legend [style*="background"], .donut-seg, .heat-cell, .chart-key i, .dl-row i) { filter: saturate(.55); }

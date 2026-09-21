@@ -1,6 +1,6 @@
 /* RunOS — Home. The one screen that answers "how is today going, and what's next?"
    Home is built from cards. Which cards show, and in what order, is chosen under
-   More → Home screen; the list of possible cards is LX.HOME_CARDS in seed.js. */
+   Settings → Home screen; the list of possible cards is LX.HOME_CARDS in seed.js. */
 (function (LX) {
   "use strict";
   var store = LX.store, forms = LX.forms, charts = LX.charts;
@@ -13,14 +13,15 @@
     return h < 5 ? "Still up" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
   }
 
-  /* A stat you can tap: it opens the sheet that logs that thing. */
-  function statCard(action, label, value, foot, goal, actual) {
+  /* A small tile you can tap: it opens the sheet that logs that thing.
+     Its icon says what it is; the bar fills towards your goal. */
+  function statCard(action, icon, label, value, goal, actual) {
     var pct = goal ? Math.min(100, (actual / goal) * 100) : null;
-    return '<button class="stat tap" data-quick="' + action + '" aria-label="Log ' + LX.esc(label) + '">' +
-      '<span class="label row-between">' + LX.esc(label) + LX.icon("plus") + "</span>" +
+    return '<button class="stat tap mini" data-quick="' + action + '" aria-label="Log ' + LX.esc(label) + '">' +
+      '<span class="label">' + LX.icon(icon) + LX.esc(label) + "</span>" +
       '<span class="metric">' + value + "</span>" +
-      (pct !== null ? '<div class="bar" style="margin-top:10px"><span style="width:' + pct.toFixed(1) + '%"></span></div>' : "") +
-      '<span class="foot">' + LX.esc(foot) + "</span></button>";
+      (pct !== null ? '<div class="bar"><span style="width:' + pct.toFixed(1) + '%"></span></div>' : "") +
+      "</button>";
   }
 
   function quickBtn(action, icon, label) {
@@ -69,16 +70,11 @@
         want("weekly") && LX.weekly ? LX.weekly.dashboardHTML() : "",
         want("tasks") && LX.tasks ? LX.tasks.dashboardHTML() : "",
         LX.db.byDate("daily_reviews", date),
-        LX.exporter.daysSinceBackup(),
-        LX.exporter.counts(),
+        null,
+        null,
         LX.tasks ? LX.tasks.open() : []
       ]).then(function (res) {
-        var s = res[0], review = res[4][0] || null, backupDays = res[5];
-        // only things you logged count — not the starter lists the app comes with
-        var starter = ["categories", "exercises", "strength_tests", "weekly_goals", "goals"];
-        var records = Object.keys(res[6]).reduce(function (a, k) {
-          return starter.indexOf(k) >= 0 ? a : a + res[6][k];
-        }, 0);
+        var s = res[0], review = res[4][0] || null;
         var openTasks = res[7];
         var dueCount = openTasks.filter(function (t) { return t.due_date && t.due_date <= date; }).length;
 
@@ -101,12 +97,7 @@
         var html = '<div><p class="greeting">' + greeting() + "</p>" +
           (line.length ? '<p class="small muted" style="margin:2px 0 0">' + LX.esc(line.join(" · ")) + "</p>" : "") + "</div>";
 
-        /* ---- a nudge when a backup is overdue ---- */
-        if (records > 20 && (backupDays === null || backupDays > 7)) {
-          html += '<button class="banner" data-backup-now style="width:100%;text-align:left">' + LX.icon("share") +
-            "<span><b>" + (backupDays === null ? "No backup yet" : "Last backup " + backupDays + " days ago") +
-            "</b><br>Tap to share one to Google Drive — takes ten seconds.</span></button>";
-        }
+        // alerts such as an overdue backup live in Settings → Alerts, marked by a dot on the gear
 
         var blocks = {
           quick: function () {
@@ -119,19 +110,11 @@
               "</div>";
           },
           stats: function () {
-            return '<div class="stats">' +
-              statCard("sleep", "Sleep", s.sleepMinutes ? LX.fmtDur(s.sleepMinutes) : "—",
-                sleepGoal ? "Goal " + LX.fmtDur(sleepGoal) : "Tap to log", sleepGoal, s.sleepMinutes) +
-              statCard("workout", "Exercise", s.exerciseMinutes ? LX.fmtDur(s.exerciseMinutes) : "—",
-                exGoal ? "Goal " + LX.fmtDur(exGoal) : "Tap to log", exGoal, s.exerciseMinutes) +
-              statCard("food", "Calories", s.nutrition.calories ? LX.num(s.nutrition.calories) + "<small>kcal</small>" : "—",
-                kcalGoal ? (s.nutrition.calories && kcalGoal > s.nutrition.calories
-                  ? LX.num(kcalGoal - s.nutrition.calories) + " kcal left" : "Goal " + LX.num(kcalGoal) + " kcal") : "Tap to log",
-                kcalGoal, s.nutrition.calories) +
-              statCard("food", "Protein", s.nutrition.protein ? LX.num(s.nutrition.protein) + "<small>g</small>" : "—",
-                proGoal ? (s.nutrition.protein && proGoal > s.nutrition.protein
-                  ? LX.num(proGoal - s.nutrition.protein) + " g to go" : "Goal " + LX.num(proGoal) + " g") : "Tap to log",
-                proGoal, s.nutrition.protein) +
+            return '<div class="stats mini">' +
+              statCard("sleep", "bed", "Sleep", s.sleepMinutes ? LX.fmtDur(s.sleepMinutes) : "—", sleepGoal, s.sleepMinutes) +
+              statCard("workout", "dumbbell", "Exercise", s.exerciseMinutes ? LX.fmtDur(s.exerciseMinutes) : "—", exGoal, s.exerciseMinutes) +
+              statCard("food", "flame", "Calories", s.nutrition.calories ? LX.num(s.nutrition.calories) : "—", kcalGoal, s.nutrition.calories) +
+              statCard("food", "egg", "Protein", s.nutrition.protein ? LX.num(s.nutrition.protein) + "<small>g</small>" : "—", proGoal, s.nutrition.protein) +
               "</div>";
           },
           tasks: function () { return res[3] || ""; },
@@ -227,12 +210,6 @@
       forms.saveCheckin(date, patch).then(function () {
         document.dispatchEvent(new CustomEvent("lx:data-changed"));
         LX.ui.toast((t.dataset.checkin === "mood" ? "Mood " : "Energy ") + t.dataset.v + " saved");
-      });
-    });
-    LX.on(el, "click", "[data-backup-now]", function () {
-      LX.app.go("more").then(function () {
-        var b = document.querySelector('[data-more="backup"]');
-        if (b) b.click();
       });
     });
     LX.on(el, "click", "[data-home-layout]", function () {

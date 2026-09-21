@@ -1,7 +1,7 @@
 /* LifeOS — service worker.
    The shell is cached so the app opens with no network at all. Data never goes
    through here: it lives in IndexedDB and syncs separately. */
-var CACHE = "lifeos-1.3.1";
+var CACHE = "lifeos-1.3.4";
 var SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./css/tokens.css", "./css/base.css", "./css/components.css",
