@@ -44,7 +44,9 @@
     { "name": "Chicken breast", "quantity": 300, "unit": "g", "meal": "Lunch" },
     { "name": "Cooked rice", "quantity": 250, "unit": "g", "meal": "Lunch" },
     { "name": "Whey protein scoop", "quantity": 1, "unit": "scoop", "meal": "Snack" },
-    { "name": "Dal (cooked)", "quantity": 200, "unit": "g", "meal": "Dinner" }
+    { "name": "Dal (cooked)", "quantity": 200, "unit": "g", "meal": "Dinner" },
+    { "name": "Homemade chicken curry", "quantity": 200, "unit": "g", "meal": "Dinner",
+      "calories": 310, "protein": 26, "carbs": 8, "fat": 19, "fiber": 2 }
   ],
   "weight": { "value": 78.4, "unit": "kg", "note": "Morning" },
   "measurements": {

@@ -73,21 +73,38 @@
                the unit are filled in and you type the values yourself.
        as      the name written into the entry, when the list needs a longer
                label than the food should be saved under.
+       aliases other names this food is written as — "Eggs", "Milk", "Rice".
+               JSON import matches a name only when it is exactly the food's
+               name or one of these (capitals, brackets and a plural "s" aside),
+               never a near miss, so a food can't quietly match the wrong one.
+       units   other units this food can be counted in, as how many of `unit`
+               one of them is: whey protein's { scoop: 30 } means a scoop is 30 g.
 
-     kcal / p / c / f / fib are per `size`, and everything is scaled from there. */
+     kcal / p / c / f / fib are per `size`, and everything is scaled from there.
+     Every value can be changed under Settings → Food values (whey protein
+     labels differ from brand to brand); food already logged keeps the values
+     it was saved with. */
   LX.COMMON_FOODS = [
-    { name: "Egg (whole)",        unit: "piece", size: 1,   serve: 1,   kcal: 78,  p: 6.3,  c: 0.6, f: 5.3, fib: 0 },
-    { name: "Chicken breast",     unit: "g",     size: 100, serve: 100, kcal: 165, p: 31,   c: 0,   f: 3.6, fib: 0 },
-    { name: "Cooked rice",        unit: "g",     size: 100, serve: 150, kcal: 130, p: 2.7,  c: 28,  f: 0.3, fib: 0.4 },
-    { name: "Curd / yoghurt",     unit: "g",     size: 100, serve: 100, kcal: 61,  p: 3.5,  c: 4.7, f: 3.3, fib: 0 },
-    { name: "Milk (full fat)",    unit: "ml",    size: 100, serve: 200, kcal: 61,  p: 3.2,  c: 4.8, f: 3.3, fib: 0 },
-    { name: "Sugar",              unit: "g",     size: 100, serve: 5,   kcal: 387, p: 0,    c: 100, f: 0,   fib: 0 },
+    { name: "Egg (whole)",        unit: "piece", size: 1,   serve: 1,   kcal: 78,  p: 6.3,  c: 0.6, f: 5.3, fib: 0,
+      aliases: ["Egg", "Whole egg", "Boiled egg"] },
+    { name: "Chicken breast",     unit: "g",     size: 100, serve: 100, kcal: 165, p: 31,   c: 0,   f: 3.6, fib: 0,
+      aliases: ["Chicken"] },
+    { name: "Cooked rice",        unit: "g",     size: 100, serve: 150, kcal: 130, p: 2.7,  c: 28,  f: 0.3, fib: 0.4,
+      aliases: ["Rice", "White rice", "Boiled rice", "Steamed rice"] },
+    { name: "Curd / yoghurt",     unit: "g",     size: 100, serve: 100, kcal: 61,  p: 3.5,  c: 4.7, f: 3.3, fib: 0,
+      aliases: ["Curd", "Yogurt", "Yoghurt", "Dahi"] },
+    { name: "Milk (full fat)",    unit: "ml",    size: 100, serve: 200, kcal: 61,  p: 3.2,  c: 4.8, f: 3.3, fib: 0,
+      aliases: ["Milk", "Whole milk", "Full fat milk", "Full cream milk"] },
+    { name: "Sugar",              unit: "g",     size: 100, serve: 5,   kcal: 387, p: 0,    c: 100, f: 0,   fib: 0,
+      aliases: ["White sugar"] },
     { name: "Dates",              unit: "piece", size: 1,   serve: 2,   kcal: 66,  p: 0.4,  c: 18,  f: 0.1, fib: 1.6 },
-    { name: "Oats (dry)",         unit: "g",     size: 100, serve: 40,  kcal: 389, p: 17,   c: 66,  f: 7,   fib: 10.6 },
+    { name: "Oats (dry)",         unit: "g",     size: 100, serve: 40,  kcal: 389, p: 17,   c: 66,  f: 7,   fib: 10.6,
+      aliases: ["Oats", "Rolled oats"] },
     { name: "Banana",             unit: "piece", size: 1,   serve: 1,   kcal: 105, p: 1.3,  c: 27,  f: 0.4, fib: 3.1 },
     { name: "Curry (enter your own)", as: "Curry", unit: "g", size: 100, serve: 150, custom: true, kcal: 0, p: 0, c: 0, f: 0, fib: 0 },
     { name: "Fruit (enter your own)", as: "Fruit", unit: "piece", size: 1, serve: 1, custom: true, kcal: 0, p: 0, c: 0, f: 0, fib: 0 },
-    { name: "Chapati",            unit: "piece", size: 1,   serve: 2,   kcal: 104, p: 3,    c: 18,  f: 2.5, fib: 2.6 },
+    { name: "Chapati",            unit: "piece", size: 1,   serve: 2,   kcal: 104, p: 3,    c: 18,  f: 2.5, fib: 2.6,
+      aliases: ["Chapathi", "Roti", "Phulka"] },
     { name: "Dal (cooked)",       unit: "g",     size: 100, serve: 150, kcal: 116, p: 7.6,  c: 20,  f: 0.4, fib: 7.9 },
     { name: "Paneer",             unit: "g",     size: 100, serve: 50,  kcal: 296, p: 20,   c: 3.4, f: 22,  fib: 0 },
     { name: "Fish (rohu)",        unit: "g",     size: 100, serve: 100, kcal: 97,  p: 17,   c: 0,   f: 3,   fib: 0 },
@@ -95,12 +112,17 @@
     { name: "Egg white",          unit: "piece", size: 1,   serve: 1,   kcal: 17,  p: 3.6,  c: 0.2, f: 0.1, fib: 0 },
     { name: "Idli",               unit: "piece", size: 1,   serve: 2,   kcal: 58,  p: 2,    c: 12,  f: 0.4, fib: 0.8 },
     { name: "Dosa",               unit: "piece", size: 1,   serve: 1,   kcal: 133, p: 2.7,  c: 22,  f: 3.7, fib: 1 },
-    { name: "Whey protein scoop", unit: "scoop", size: 1,   serve: 1,   kcal: 120, p: 24,   c: 3,   f: 1.5, fib: 0 },
+    { name: "Whey protein",       unit: "g",     size: 30,  serve: 30,  kcal: 120, p: 24,   c: 3,   f: 1.5, fib: 0,
+      units: { scoop: 30 }, aliases: ["Whey", "Whey protein powder", "Whey protein scoop"] },
     { name: "Ghee",               unit: "g",     size: 100, serve: 5,   kcal: 900, p: 0,    c: 0,   f: 100, fib: 0 },
     { name: "Apple",              unit: "piece", size: 1,   serve: 1,   kcal: 95,  p: 0.5,  c: 25,  f: 0.3, fib: 4.4 },
     { name: "Almonds",            unit: "g",     size: 100, serve: 20,  kcal: 579, p: 21,   c: 22,  f: 50,  fib: 12.5 },
     { name: "Peanut butter",      unit: "g",     size: 100, serve: 15,  kcal: 588, p: 25,   c: 20,  f: 50,  fib: 6 },
-    { name: "Mixed vegetables",   unit: "g",     size: 100, serve: 100, kcal: 65,  p: 2.6,  c: 13,  f: 0.5, fib: 4 }
+    { name: "Mixed vegetables",   unit: "g",     size: 100, serve: 100, kcal: 65,  p: 2.6,  c: 13,  f: 0.5, fib: 4 },
+    { name: "Carrot",             unit: "g",     size: 100, serve: 60,  kcal: 41,  p: 0.9,  c: 9.6, f: 0.2, fib: 2.8,
+      aliases: ["Raw carrot"] },
+    { name: "Roasted Kabuli Chana", unit: "g",   size: 100, serve: 30,  kcal: 378, p: 20.5, c: 63,  f: 6,   fib: 12.2,
+      aliases: ["Roasted chickpeas", "Roasted kabuli chickpeas", "Kabuli chana roasted"] }
   ];
 
   LX.DEFAULT_GOALS = [

@@ -23,6 +23,7 @@
           ]) +
           group("Setup", [
             row("goals", "target", "Goals", "Your own targets, not automatic ones"),
+            row("foods", "food", "Food values", "What one egg or 100 g of rice counts as"),
             row("categories", "clock", "Time categories", store.categories.length + " categories"),
             row("appearance", "sun", "Appearance", themeLabel()),
             row("home", "grid", "Home screen", "Choose and order what Home shows")
@@ -125,7 +126,7 @@
   function open(key) {
     var fns = {
       auth: authSheet, signout: signOut, sync: syncNow, import: importSheet, backup: backupSheet,
-      goals: goalsSheet, categories: categoriesSheet, appearance: appearanceSheet, home: homeCardsSheet,
+      goals: goalsSheet, foods: foodValuesSheet, categories: categoriesSheet, appearance: appearanceSheet, home: homeCardsSheet,
       schema: schemaSheet, about: aboutSheet,
       review: function () { LX.forms.dailyReview({ onDone: LX.app.refresh }); }
     };
@@ -283,7 +284,7 @@
         '<div class="label">' + r.items.length + " entries across " + r.payloads.length + " day(s)</div></div>" +
         '<div class="list">' + r.items.map(function (i) {
           return '<div class="list-row" style="min-height:44px;padding:9px 18px">' +
-            '<span style="color:var(--ok)">' + LX.icon("check") + "</span>" +
+            '<span style="color:var(' + (i.missing ? "--warn" : "--ok") + ')">' + LX.icon(i.missing ? "alert" : "check") + "</span>" +
             '<span class="grow"><span class="primary">' + LX.esc(i.kind) + "</span></span>" +
             '<span class="secondary">' + LX.esc(i.text) + "</span></div>";
         }).join("") + "</div></div>";
@@ -389,6 +390,81 @@
           });
         }
       });
+    });
+  }
+
+  /* ---------------- food values ----------------
+     The values imports and the food sheet calculate from. Edit one to match a
+     label (whey protein differs from brand to brand). Saved with your settings
+     on this device and in backups. Food already logged keeps the values it was
+     saved with — changing a food here never rewrites your history. */
+  function foodValuesSheet() {
+    function per(f) {
+      return LX.num(f.kcal, f.kcal % 1 ? 1 : 0) + " kcal · " + LX.num(f.p, 1) + "g protein per " +
+        LX.num(f.size, f.size % 1 ? 1 : 0) + " " + f.unit;
+    }
+    function listHTML() {
+      return store.foodList().map(function (f, i) {
+        if (f.custom) return "";
+        return '<button class="list-row tap" data-food-def="' + i + '">' +
+          '<span class="grow"><span class="primary">' + LX.esc(f.name) + "</span><br>" +
+          '<span class="secondary">' + LX.esc(per(f)) + "</span></span>" +
+          (f.edited ? '<span class="pill-tag">edited</span>' : "") + LX.icon("chevron") + "</button>";
+      }).join("");
+    }
+    ui.sheet({
+      title: "Food values",
+      body: '<p class="small muted" style="margin:0">Imports and the food sheet work out calories from these. ' +
+        "Change one to match a label \u2014 whey protein, for example. Food you already logged keeps the values it was saved with.</p>" +
+        '<div class="list card flush" data-food-defs>' + listHTML() + "</div>",
+      footer: '<button class="btn btn-block" data-close>Done</button>',
+      onMount: function (root) {
+        LX.on(root, "click", "[data-food-def]", function (e, t) {
+          var f = store.foodList()[Number(t.dataset.foodDef)];
+          if (f) foodValueSheet(f, function () { root.querySelector("[data-food-defs]").innerHTML = listHTML(); });
+        });
+      }
+    });
+  }
+
+  function foodValueSheet(f, onDone) {
+    var extra = Object.keys(f.units || {});
+    function box(name, label, value) {
+      return ui.field(label, '<input class="input" type="number" inputmode="decimal" min="0" step="any" name="' + name +
+        '" value="' + LX.esc(value) + '" />');
+    }
+    ui.sheet({
+      title: f.name,
+      body: '<p class="small muted" style="margin:0">Values for the amount below, in ' + LX.esc(f.unit) +
+        ". Everything else is scaled from it: " + (f.unit === "piece" && f.size === 1
+          ? "7 pieces count as 7 times these values."
+          : LX.num(f.size * 2) + " " + LX.esc(f.unit) + " counts as twice these values.") + "</p>" +
+        box("size", "Amount (" + f.unit + ")", f.size) +
+        '<div class="field-row">' + box("kcal", "Calories", f.kcal) + box("p", "Protein (g)", f.p) + "</div>" +
+        '<div class="field-row-3">' + box("c", "Carbs (g)", f.c) + box("f", "Fat (g)", f.f) + box("fib", "Fibre (g)", f.fib) + "</div>" +
+        extra.map(function (u) { return box("unit_" + u, "How many " + f.unit + " in one " + u, f.units[u]); }).join(""),
+      footer: (f.edited ? '<button class="btn" data-reset>Use built-in</button>' : '<button class="btn" data-close>Cancel</button>') +
+        '<button class="btn btn-primary" data-save>Save</button>',
+      onMount: function (root, close) {
+        root.querySelector("[data-save]").addEventListener("click", function () {
+          var v = ui.values(root);
+          var bad = ["size", "kcal", "p", "c", "f", "fib"].some(function (k) {
+            return v[k] === "" || !isFinite(Number(v[k])) || Number(v[k]) < 0;
+          });
+          if (bad || !(Number(v.size) > 0)) return ui.toast("Fill in every value with a number", "danger");
+          var units = null;
+          if (extra.length) {
+            units = {};
+            extra.forEach(function (u) { units[u] = Number(v["unit_" + u]) > 0 ? Number(v["unit_" + u]) : f.units[u]; });
+          }
+          store.saveFoodValues(f.name, { size: v.size, kcal: v.kcal, p: v.p, c: v.c, f: v.f, fib: v.fib, units: units })
+            .then(function () { close(); ui.toast(f.name + " saved"); if (onDone) onDone(); });
+        });
+        var reset = root.querySelector("[data-reset]");
+        if (reset) reset.addEventListener("click", function () {
+          store.resetFoodValues(f.name).then(function () { close(); ui.toast(f.name + " back to built-in values"); if (onDone) onDone(); });
+        });
+      }
     });
   }
 
@@ -560,7 +636,10 @@
         rowKV("sleep", "duration_minutes, or bedtime and wake_time. quality 1–5 optional.") +
         rowKV("activities[]", "category, duration_minutes, optional title, start_time, notes.") +
         rowKV("workout", "type, duration_minutes, exercises[] with name and sets[] of weight_kg and reps.") +
-        rowKV("food[]", "name, quantity, unit, meal, and macros. Known foods fill their own macros.") +
+        rowKV("food[]", "name, quantity, unit, meal, and optionally calories, protein, carbs, fat, fiber. " +
+          "Values you give are kept as given. Anything left out is calculated from Settings → Food values when the food is " +
+          "known (Egg, Rice, Milk, Curd…) and its unit fits — pieces, g or ml. A food that can't be worked out is saved as " +
+          "Nutrition missing, never 0 kcal.") +
         rowKV("weight", "a number, or {value, unit, note}.") +
         rowKV("measurements", '{"Chest": 100} or [{name, value, unit}].') +
         rowKV("review", "planned, completed, journal.") +

@@ -54,13 +54,15 @@
           }).join("") + "</div></div>";
       }
 
-      if (s.nutrition.calories) {
+      if (s.nutrition.calories || s.foods.length) {
         body += '<div class="card"><div class="card-head"><h2>Food</h2><span class="small muted">' +
           s.foods.length + " entries</span></div>" +
           kv("Calories", LX.num(s.nutrition.calories) + " kcal") +
           kv("Protein", LX.num(s.nutrition.protein, 1) + " g") +
           kv("Carbs", LX.num(s.nutrition.carbs, 1) + " g") +
-          kv("Fat", LX.num(s.nutrition.fat, 1) + " g") + "</div>";
+          kv("Fat", LX.num(s.nutrition.fat, 1) + " g") +
+          (s.nutrition.missing ? kv("Nutrition missing", s.nutrition.missing + (s.nutrition.missing === 1 ? " food" : " foods")) : "") +
+          "</div>";
       }
 
       if (s.workouts.length || s.weight) {
@@ -71,7 +73,7 @@
           (s.weight ? kv("Weight", LX.num(s.weight.weight, 1) + " " + s.weight.unit) : "") + "</div>";
       }
 
-      if (!s.activities.length && !s.nutrition.calories && !s.sleepMinutes) {
+      if (!s.activities.length && !s.nutrition.calories && !s.foods.length && !s.sleepMinutes) {
         body += ui.empty("Nothing recorded on this day", "Anything you add for this date will show up here.");
       }
 

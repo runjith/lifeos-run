@@ -1038,6 +1038,259 @@ function assert(cond, msg) {
     assert(html().indexOf("NaN") === -1, "chart output is clean");
   }
 
+  // ================================================================ 1.3.5 food import & nutrition
+  {
+    console.log("\n-- food import: matching, calculating, nutrition missing --");
+    const pause = (ms = 60) => new Promise(r => setTimeout(r, ms));
+    const S = LX.store;
+    const day = LX.D.add(today, -40);
+    // one food through the importer, exactly as a pasted JSON day would go
+    const one = f => {
+      const r = LX.importer.validate(JSON.stringify({ date: day, food: [f] }));
+      return { r, e: r.payloads[0] && r.payloads[0].food[0] };
+    };
+    const close = (a, b) => Math.abs(a - b) < 0.051;
+
+    // --- the foods eaten every day are in the list
+    ["Egg (whole)", "Chicken breast", "Cooked rice", "Milk (full fat)", "Curd / yoghurt", "Oats (dry)",
+     "Carrot", "Banana", "Dates", "Chapati", "Sugar", "Roasted Kabuli Chana", "Whey protein"].forEach(n =>
+      assert(LX.COMMON_FOODS.some(f => f.name === n && f.kcal > 0 && f.size > 0), "the food list has " + n));
+
+    // --- eggs: 1 vs 4 vs 7
+    const e1 = one({ name: "Egg", quantity: 1, unit: "piece", meal: "Breakfast" }).e;
+    const e4 = one({ name: "Eggs", quantity: 4, unit: "piece", meal: "Breakfast" }).e;
+    const e7 = one({ name: "Egg", quantity: 7, unit: "piece", meal: "Breakfast" }).e;
+    assert(e1.calories === 78 && e4.calories === 312 && e7.calories === 546,
+      "1 egg = 78, 4 eggs = 312, 7 eggs = 546 kcal (got " + [e1.calories, e4.calories, e7.calories] + ")");
+    assert(close(e7.protein, 44.1) && close(e7.carbs, 4.2) && close(e7.fat, 37.1) && e7.fiber === 0,
+      "7 eggs: 44.1 g protein, 4.2 g carbs, 37.1 g fat, 0 fibre (got " + [e7.protein, e7.carbs, e7.fat, e7.fiber] + ")");
+    assert(e7.name === "Egg (whole)" && e7.unit === "piece" && e7.quantity === 7, "Egg is saved as 7 pieces of Egg (whole)");
+
+    // --- grams and millilitres scale per 100
+    const ch = one({ name: "Chicken", quantity: 300, unit: "g", meal: "Lunch" }).e;
+    assert(ch.name === "Chicken breast" && ch.calories === 495 && close(ch.protein, 93) && close(ch.fat, 10.8),
+      "300 g chicken = 3 x 100 g: 495 kcal, 93 g protein (got " + ch.calories + ", " + ch.protein + ")");
+    const ri = one({ name: "Rice", quantity: 250, unit: "g", meal: "Lunch" }).e;
+    assert(ri.name === "Cooked rice" && ri.calories === 325 && close(ri.carbs, 70) && close(ri.protein, 6.8),
+      "250 g rice = 2.5 x 100 g: 325 kcal, 70 g carbs (got " + ri.calories + ", " + ri.carbs + ")");
+    const mi = one({ name: "Milk", quantity: 200, unit: "ml", meal: "Breakfast" }).e;
+    assert(mi.name === "Milk (full fat)" && mi.calories === 122 && close(mi.protein, 6.4),
+      "200 ml milk = 2 x 100 ml: 122 kcal, 6.4 g protein (got " + mi.calories + ", " + mi.protein + ")");
+    const cu = one({ name: "Curd", quantity: 80, unit: "g", meal: "Lunch" }).e;
+    assert(cu.name === "Curd / yoghurt" && cu.calories === 49 && close(cu.protein, 2.8),
+      "80 g curd = 0.8 x 100 g: 49 kcal, 2.8 g protein (got " + cu.calories + ", " + cu.protein + ")");
+    const cn = one({ name: "Roasted Kabuli Chana", quantity: 100, unit: "g", meal: "Snack" }).e;
+    assert(cn.calories === 378 && close(cn.protein, 20.5) && close(cn.fiber, 12.2),
+      "100 g roasted kabuli chana = 378 kcal, 20.5 g protein (got " + cn.calories + ", " + cn.protein + ")");
+    const wh = one({ name: "Whey Protein", quantity: 15, unit: "g", meal: "Snack" }).e;
+    assert(wh.name === "Whey protein" && wh.calories === 60 && close(wh.protein, 12),
+      "15 g whey = half a 30 g scoop: 60 kcal, 12 g protein (got " + wh.calories + ", " + wh.protein + ")");
+    const sc = one({ name: "Whey protein", quantity: 1, unit: "scoop", meal: "Snack" }).e;
+    assert(sc.quantity === 30 && sc.unit === "g" && sc.calories === 120, "1 scoop of whey is counted as 30 g, 120 kcal");
+    const kg = one({ name: "Chicken breast", quantity: 0.3, unit: "kg", meal: "Lunch" }).e;
+    assert(kg.quantity === 300 && kg.unit === "g" && kg.calories === 495, "0.3 kg is turned into 300 g");
+    const gms = one({ name: "Oats", quantity: 40, unit: "grams", meal: "Breakfast" }).e;
+    assert(gms.name === "Oats (dry)" && gms.calories === 156, "\"grams\" is read as g: 40 g oats = 156 kcal");
+
+    // --- simple, safe aliases
+    const aliasOf = (name, unit) => { const m = S.matchFood(name, unit); return m && m.fits ? m.food.name : null; };
+    [["Egg", "Egg (whole)"], ["Eggs", "Egg (whole)"], ["Whole egg", "Egg (whole)"], ["EGGS", "Egg (whole)"],
+     ["Chicken", "Chicken breast"], ["Rice", "Cooked rice"], ["Milk", "Milk (full fat)"],
+     ["Curd", "Curd / yoghurt"], ["Yogurt", "Curd / yoghurt"], ["Yoghurt", "Curd / yoghurt"],
+     ["Oats", "Oats (dry)"], ["Banana", "Banana"], ["Bananas", "Banana"], ["Dates", "Dates"], ["Date", "Dates"],
+     ["Chapati", "Chapati"], ["Chapatis", "Chapati"], ["Carrot", "Carrot"], ["Carrots", "Carrot"],
+     ["Roasted kabuli chana", "Roasted Kabuli Chana"], ["Whey", "Whey protein"], ["Sugar", "Sugar"]
+    ].forEach(([n, want]) => assert(aliasOf(n) === want, '"' + n + '" matches ' + want + " (got " + aliasOf(n) + ")"));
+    ["Chicken curry", "Egg curry", "Rice kheer", "Milk shake", "Chicken biryani", "Eggplant", "Date shake", "Carrot halwa"]
+      .forEach(n => assert(S.matchFood(n) === null, '"' + n + '" does not match anything (no near misses)'));
+    assert(S.matchFood("Curry (enter your own)") === null, "the enter-your-own placeholders are never matched");
+
+    // --- nutrition given in the JSON is kept exactly
+    const given = one({ name: "Egg (whole)", quantity: 7, unit: "piece", meal: "Breakfast",
+      calories: 546, protein: 44.1, carbs: 4.2, fat: 37.1, fiber: 0 });
+    assert(given.e.calories === 546 && given.e.protein === 44.1 && given.e.carbs === 4.2 && given.e.fat === 37.1 && given.e.fiber === 0,
+      "JSON values for eggs are kept as given");
+    const curry = one({ name: "Homemade mutton curry", quantity: 250, unit: "g", meal: "Dinner",
+      calories: 420, protein: 30, carbs: 9, fat: 29, fiber: 2 });
+    assert(curry.e.name === "Homemade mutton curry" && curry.e.calories === 420 && curry.e.protein === 30 &&
+      curry.e.fiber === 2 && !curry.r.items[0].missing, "a homemade food with its own values is saved with exactly those values");
+    const sweet = one({ name: "Gulab jamun", quantity: 2, unit: "piece", meal: "Snack", calories: 300 });
+    assert(sweet.e.calories === 300 && sweet.e.protein === null, "calories alone are kept; unknown protein stays unknown, not 0");
+    const mix = one({ name: "Chicken", quantity: 300, unit: "g", meal: "Lunch", calories: 450 });
+    assert(mix.e.calories === 450 && close(mix.e.protein, 93), "values given win; the rest are calculated (450 kcal given, 93 g protein worked out)");
+    const alt = one({ name: "Paratha", quantity: 1, unit: "piece", meal: "Breakfast",
+      nutrition: { kcal: 260, protein_g: 5, carbohydrates: 36, fat_g: 10, fibre: 3 } });
+    assert(alt.e.calories === 260 && alt.e.protein === 5 && alt.e.carbs === 36 && alt.e.fat === 10 && alt.e.fiber === 3,
+      "kcal, protein_g, carbohydrates, fat_g and fibre (and a nested nutrition block) are understood");
+
+    // --- unknown food never becomes 0 kcal
+    const unk = one({ name: "Carrot halwa", quantity: 150, unit: "g", meal: "Snack" });
+    assert(unk.r.ok, "a day with an unknown food still imports");
+    assert(unk.e.calories === null && unk.e.protein === null, "an unknown food with no values is not given 0 kcal");
+    assert(unk.r.items[0].missing && unk.r.items[0].text.indexOf("Nutrition missing") > -1, "the preview says Nutrition missing");
+    assert(unk.r.warnings.some(w => w.indexOf("Nutrition missing") > -1 && w.indexOf("Carrot halwa") > -1), "and a warning explains it");
+    assert(unk.r.warnings.every(w => w.indexOf("0 kcal") === -1), "nothing says it was saved as 0 kcal");
+    const cup = one({ name: "Rice", quantity: 1, unit: "cup", meal: "Lunch" });
+    assert(cup.e.calories === null && cup.e.unit === "cup" && cup.r.warnings.some(w => w.indexOf("measured in g") > -1),
+      "a known food in a unit that can't be converted (1 cup of rice) is Nutrition missing, not guessed");
+    const gEgg = one({ name: "Egg", quantity: 100, unit: "g", meal: "Breakfast" });
+    assert(gEgg.e.calories === null, "grams of egg are not guessed from the per-egg values");
+    const noUnit = one({ name: "Egg", quantity: 3, meal: "Breakfast" });
+    assert(noUnit.e.calories === 234 && noUnit.e.unit === "piece" && noUnit.r.warnings.some(w => w.indexOf("no unit") > -1),
+      "no unit given: counted in the food's own unit, and the preview says so");
+
+    // --- write a real day: known foods, given values, one unknown
+    const dayJSON = { date: day, food: [
+      { name: "Egg", quantity: 7, unit: "piece", meal: "Breakfast" },
+      { name: "Milk", quantity: 200, unit: "ml", meal: "Breakfast" },
+      { name: "Whey Protein", quantity: 15, unit: "g", meal: "Breakfast" },
+      { name: "Homemade mutton curry", quantity: 250, unit: "g", meal: "Dinner", calories: 420, protein: 30, carbs: 9, fat: 29, fiber: 2 },
+      { name: "Carrot halwa", quantity: 150, unit: "g", meal: "Snack" }
+    ] };
+    const res = LX.importer.validate(JSON.stringify(dayJSON));
+    assert(res.ok && res.items.length === 5, "the day validates with 5 foods");
+    assert(res.warnings.some(w => w.indexOf("Egg → Egg (whole)") > -1 && w.indexOf("Milk → Milk (full fat)") > -1),
+      "the preview lists which names were matched to which food");
+    await LX.importer.apply(res);
+    let rows = await LX.db.byDate("food_entries", day);
+    const byName = n => rows.find(r => r.name === n);
+    assert(rows.length === 5, "all 5 foods were saved");
+    assert(byName("Egg (whole)").calories === 546 && byName("Milk (full fat)").calories === 122 && byName("Whey protein").calories === 60,
+      "calculated values are stored with each entry");
+    assert(byName("Homemade mutton curry").calories === 420, "given values are stored as given");
+    assert(byName("Carrot halwa").calories === null, "the unknown food is stored as missing (empty), not 0");
+    const sum = await S.daySummary(day);
+    assert(sum.nutrition.calories === 546 + 122 + 60 + 420, "the day's total adds the known foods (" + sum.nutrition.calories + ")");
+    assert(sum.nutrition.missing === 1, "and counts one food with nutrition missing");
+    const rng = await S.rangeSummary(day, day);
+    assert(rng.days[0].hasFood && rng.days[0].calories === 1148, "the range summary is not thrown by the missing entry");
+
+    // --- editing quantity recalculates nutrition (through the edit sheet)
+    const eggRow = byName("Egg (whole)");
+    LX.forms.logFood({ entry: eggRow });
+    await pause(80);
+    let sh = Array.from(document.querySelectorAll(".sheet")).pop();
+    const q = sh.querySelector('[name="quantity"]');
+    q.value = "4"; q.dispatchEvent(new window.Event("input", { bubbles: true }));
+    assert(Number(sh.querySelector('[name="calories"]').value) === 312 &&
+      close(Number(sh.querySelector('[name="protein"]').value), 25.2), "changing 7 eggs to 4 in the edit sheet gives 312 kcal, 25.2 g protein");
+    sh.querySelector("[data-save]").click();
+    await pause(120);
+    rows = await LX.db.byDate("food_entries", day);
+    assert(rows.length === 5 && byName("Egg (whole)").calories === 312 && byName("Egg (whole)").quantity === 4,
+      "saving updates the same entry: 4 eggs, 312 kcal");
+    LX.ui.closeAllSheets(); await pause(300);
+
+    // gram food too: 300 g chicken edited to 150 g
+    await LX.importer.apply(LX.importer.validate(JSON.stringify({ date: day, food: [{ name: "Chicken", quantity: 300, unit: "g", meal: "Lunch" }] })));
+    rows = await LX.db.byDate("food_entries", day);
+    LX.forms.logFood({ entry: byName("Chicken breast") }); await pause(80);
+    sh = Array.from(document.querySelectorAll(".sheet")).pop();
+    const q2 = sh.querySelector('[name="quantity"]');
+    q2.value = "150"; q2.dispatchEvent(new window.Event("input", { bubbles: true }));
+    assert(Number(sh.querySelector('[name="calories"]').value) === 248 && close(Number(sh.querySelector('[name="protein"]').value), 46.5),
+      "300 g chicken edited to 150 g halves it (248 kcal, 46.5 g protein)");
+    LX.ui.closeAllSheets(); await pause(300);
+
+    // --- a Nutrition missing entry can be filled in by hand
+    LX.forms.logFood({ entry: byName("Carrot halwa") }); await pause(80);
+    sh = Array.from(document.querySelectorAll(".sheet")).pop();
+    assert(sh.querySelector('[name="calories"]').value === "", "the missing entry opens with an empty calories box, not 0");
+    assert(sh.querySelector("[data-food-sum]").textContent.indexOf("Nutrition missing") > -1, "and the sheet says Nutrition missing");
+    const q3 = sh.querySelector('[name="quantity"]');
+    q3.value = "100"; q3.dispatchEvent(new window.Event("input", { bubbles: true }));
+    assert(sh.querySelector('[name="calories"]').value === "", "changing its quantity does not invent 0 kcal");
+    sh.querySelector('[name="calories"]').value = "380";
+    sh.querySelector('[name="protein"]').value = "6";
+    sh.querySelector("[data-save]").click();
+    await pause(120);
+    rows = await LX.db.byDate("food_entries", day);
+    assert(byName("Carrot halwa").calories === 380 && byName("Carrot halwa").protein === 6 && byName("Carrot halwa").carbs === null,
+      "typed values are saved; boxes left empty stay unknown");
+    assert((await S.daySummary(day)).nutrition.missing === 0, "and the day no longer has anything missing");
+    LX.ui.closeAllSheets(); await pause(300);
+
+    // manual logging: a blank calories box is Nutrition missing, not 0
+    LX.forms.logFood({ date: day }); await pause(80);
+    sh = Array.from(document.querySelectorAll(".sheet")).pop();
+    sh.querySelector('[name="name"]').value = "Mystery snack";
+    sh.querySelector('[name="quantity"]').value = "1";
+    sh.querySelector("[data-save]").click();
+    await pause(120);
+    rows = await LX.db.byDate("food_entries", day);
+    assert(byName("Mystery snack") && byName("Mystery snack").calories === null, "a food logged by hand with no calories is Nutrition missing");
+    assert((await S.recentFoods(20)).every(r => r.name !== "Mystery snack"), "an entry without values is not offered as a 0 kcal recent food");
+    LX.ui.closeAllSheets(); await pause(300);
+
+    // --- the Food tab shows it
+    await LX.importer.apply(LX.importer.validate(JSON.stringify({ date: today, food: [{ name: "Unknown laddu", quantity: 2, unit: "piece", meal: "Snack" }] })));
+    LX.screens.health.setTab("nutrition"); await LX.app.go("health"); await pause(80);
+    const v = document.getElementById("view").innerHTML;
+    assert(v.indexOf("Nutrition missing") > -1 && v.indexOf("Unknown laddu") > -1, "Health → Food shows the entry as Nutrition missing");
+    assert(v.indexOf("totals are incomplete") > -1, "and says today's totals are incomplete");
+    assert(v.indexOf("NaN") === -1 && v.indexOf("null") === -1 && v.indexOf("undefined") === -1, "the Food tab has no NaN, null or undefined");
+    LX.daySheet(today); await pause(150);
+    const ds = Array.from(document.querySelectorAll(".sheet")).pop().innerHTML;
+    assert(ds.indexOf("Nutrition missing") > -1 && ds.indexOf("null") === -1, "the day drill-down counts it as Nutrition missing");
+    LX.ui.closeAllSheets(); await pause(300);
+
+    // --- export / restore keeps every value, including unknown ones
+    const before = (await LX.db.byDate("food_entries", day)).map(r => [r.id, r.name, r.quantity, r.unit, r.calories, r.protein, r.carbs, r.fat, r.fiber].join("|")).sort();
+    const bk = JSON.parse(JSON.stringify(await LX.exporter.buildBackup()));   // as it would be saved to a file
+    await LX.exporter.restore(bk, "replace");
+    const after = (await LX.db.byDate("food_entries", day)).map(r => [r.id, r.name, r.quantity, r.unit, r.calories, r.protein, r.carbs, r.fat, r.fiber].join("|")).sort();
+    assert(before.length > 5 && JSON.stringify(before) === JSON.stringify(after), "a backup and restore brings back every food with the same values");
+    const halwaBack = (await LX.db.byDate("food_entries", day)).find(r => r.name === "Mystery snack");
+    assert(halwaBack && halwaBack.calories === null, "Nutrition missing survives a backup and restore (not turned into 0)");
+    const csv = (await LX.exporter.csvFiles()).find(f => f.name === "food_entries.csv").text;
+    assert(csv.indexOf("Mystery snack") > -1 && csv.indexOf("null") === -1, "the CSV leaves unknown values blank");
+
+    // --- changing a food's values never rewrites what was logged
+    const eggsBefore = (await LX.db.byDate("food_entries", day)).find(r => r.name === "Egg (whole)");
+    await S.saveFoodValues("Egg (whole)", { size: 1, kcal: 70, p: 6, c: 0.5, f: 5, fib: 0 });
+    const eggsAfter = (await LX.db.byDate("food_entries", day)).find(r => r.name === "Egg (whole)");
+    assert(eggsAfter.calories === eggsBefore.calories && eggsAfter.calories === 312, "editing Egg's values leaves eggs already logged at 312 kcal");
+    assert(one({ name: "Egg", quantity: 4, unit: "piece" }).e.calories === 280, "new imports use the edited values (4 x 70 = 280)");
+    assert(S.scaleFood(S.foodBasisFromEntry(eggsAfter), 2).calories === 156, "and an old entry still rescales from its own saved values (2 eggs = 156)");
+    await S.resetFoodValues("Egg (whole)");
+    assert(one({ name: "Egg", quantity: 4, unit: "piece" }).e.calories === 312, "Use built-in puts Egg back to 78 kcal each");
+
+    // --- whey protein matches your own label
+    await S.saveFoodValues("Whey protein", { size: 32, kcal: 128, p: 25, c: 2, f: 2, fib: 0, units: { scoop: 32 } });
+    const myWhey = one({ name: "Whey", quantity: 16, unit: "g" }).e;
+    assert(myWhey.calories === 64 && close(myWhey.protein, 12.5), "with your label (128 kcal / 25 g protein per 32 g), 16 g whey = 64 kcal, 12.5 g protein");
+    assert(one({ name: "Whey protein", quantity: 1, unit: "scoop" }).e.calories === 128, "and one scoop follows your scoop size");
+    const bk2 = await LX.exporter.buildBackup();
+    assert(bk2.settings.food_values && bk2.settings.food_values["whey protein"].kcal === 128, "your food values are included in backups");
+
+    // the Settings sheet
+    await LX.app.go("more"); await pause(60);
+    document.querySelector('#view [data-more="foods"]').click(); await pause(80);
+    sh = Array.from(document.querySelectorAll(".sheet")).pop();
+    const wheyRow = Array.from(sh.querySelectorAll("[data-food-def]")).find(b => b.textContent.indexOf("Whey protein") === 0);
+    assert(!!wheyRow && wheyRow.textContent.indexOf("edited") > -1, "Settings → Food values lists whey protein, marked edited");
+    wheyRow.click(); await pause(80);
+    sh = Array.from(document.querySelectorAll(".sheet")).pop();
+    assert(sh.querySelector('[name="kcal"]').value === "128" && !!sh.querySelector('[name="unit_scoop"]'), "its editor shows your values and the scoop size");
+    sh.querySelector('[name="kcal"]').value = "130";
+    sh.querySelector("[data-save]").click(); await pause(120);
+    assert(S.foodList().find(f => f.name === "Whey protein").kcal === 130, "saving from the editor updates whey protein");
+    sh = Array.from(document.querySelectorAll(".sheet")).pop();
+    sh = Array.from(document.querySelectorAll(".sheet")).filter(x => x.querySelector("[data-food-def]")).pop();
+    Array.from(sh.querySelectorAll("[data-food-def]")).find(b => b.textContent.indexOf("Whey protein") === 0).click(); await pause(80);
+    Array.from(document.querySelectorAll(".sheet")).pop().querySelector("[data-reset]").click(); await pause(120);
+    assert(!S.foodList().find(f => f.name === "Whey protein").edited && S.foodList().find(f => f.name === "Whey protein").kcal === 120,
+      "Use built-in puts whey back to 120 kcal per 30 g");
+    LX.ui.closeAllSheets(); await pause(300);
+
+    // --- the sample import still works, and its homemade food keeps its values
+    const sample = LX.importer.validate(JSON.stringify(LX.importer.SAMPLE));
+    assert(sample.ok && sample.payloads[0].food.some(f => f.name === "Homemade chicken curry" && f.calories === 310),
+      "the built-in sample imports, homemade curry with its own values");
+    const file = LX.importer.validate(fs.readFileSync(path.join(ROOT, "sample-import.json"), "utf8"));
+    assert(file.ok && file.payloads[0].food.every(f => f.calories !== null), "sample-import.json: every food gets its calories");
+  }
+
   console.log(process.exitCode ? "\nFAILURES ABOVE" : "\nAll checks passed");
   process.exit(process.exitCode || 0);
 })().catch(e => { console.error("CRASH", e); process.exit(1); });

@@ -173,8 +173,9 @@
     /* The food the numbers are currently being worked out from. While there is
        one, changing the quantity rescales calories and macros; typing over a
        value yourself lets go of it and your own numbers stand. */
-    var basis = entry ? store.foodBasisFromEntry(entry) : null;
-    var catalog = LX.COMMON_FOODS.slice();     // recent foods are added in front
+    var missing = !!entry && store.nutritionMissing(entry);
+    var basis = entry && !missing ? store.foodBasisFromEntry(entry) : null;
+    var catalog = store.foodList();            // recent foods are added in front
 
     ui.sheet({
       title: entry ? "Edit food" : "Log food",
@@ -292,7 +293,7 @@
           if (!recent.length) return;
           var seen = {};
           recent.forEach(function (f) { f.recent = true; seen[f.name.toLowerCase()] = 1; });
-          catalog = recent.concat(LX.COMMON_FOODS.filter(function (f) {
+          catalog = recent.concat(store.foodList().filter(function (f) {
             return !seen[f.name.toLowerCase()];      // no food listed twice
           }));
           renderResults();
@@ -309,6 +310,11 @@
           var v = ui.values(root);
           if (!v.name) { box.textContent = "Pick a food above, or type one in below."; return; }
           var qty = Number(v.quantity) || 0;
+          if (v.calories === "") {
+            // unknown is not zero: say so rather than showing 0 kcal
+            box.textContent = v.name + " · " + qtyText(qty, v.unit) + " · Nutrition missing — pick the food above or type its calories below";
+            return;
+          }
           if (!v.calories && !v.protein) {
             box.textContent = v.name + " · " + qtyText(qty, v.unit) + " · type its calories below";
             return;
@@ -368,8 +374,8 @@
             id: entry ? entry.id : null,
             created_at: entry ? entry.created_at : null,
             date: v.date, meal: meal, name: v.name, quantity: qty, unit: v.unit,
-            calories: Number(v.calories) || 0, protein: Number(v.protein) || 0, carbs: Number(v.carbs) || 0,
-            fat: Number(v.fat) || 0, fiber: Number(v.fiber) || 0
+            // a box left empty is saved as unknown, not as 0
+            calories: v.calories, protein: v.protein, carbs: v.carbs, fat: v.fat, fiber: v.fiber
           }).then(function () { close(); done(entry ? "Food updated" : "Food saved", opts.onDone); });
         });
 

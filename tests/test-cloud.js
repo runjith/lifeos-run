@@ -188,6 +188,8 @@ async function makeDevice(name, server) {
   B.setOnline(false);
   await LXB.store.addActivity({ date: today, category_id: workB, duration_minutes: 45, title: "Offline note" });
   await LXB.store.addFood({ date: today, meal: "Lunch", name: "Chicken breast", quantity: 200, unit: "g", calories: 330, protein: 62 });
+  // a food whose nutrition is not known yet ("Nutrition missing") — must sync as unknown, not as 0
+  await LXB.store.addFood({ date: today, meal: "Snack", name: "Carrot halwa", quantity: 150, unit: "g" });
   const offlineSync = await LXB.cloud.sync({ quiet: true });
   assert(offlineSync.skipped === "signed out", "a not-yet-signed-in device simply skips syncing");
   assert(await B.count("activities") === 1, "the offline entry is saved locally anyway");
@@ -240,7 +242,12 @@ async function makeDevice(name, server) {
   r = await LXA.cloud.sync();
   const aActs = await LXA.db.all("activities");
   assert(aActs.some(a => a.title === "Offline note"), "device A sees the entry device B made offline");
-  assert((await LXA.db.all("food_entries")).length === 1, "device A sees device B's food entry");
+  const aFood = await LXA.db.all("food_entries");
+  assert(aFood.length === 2, "device A sees device B's food entries");
+  const halwa = aFood.find(f => f.name === "Carrot halwa");
+  assert(halwa && halwa.calories === null && halwa.protein === null, "a Nutrition missing food arrives as missing, not 0 kcal");
+  assert(server.rows("food_entries").find(f => f.name === "Carrot halwa").calories === null, "and the cloud copy holds no calories either");
+  assert(aFood.find(f => f.name === "Chicken breast").calories === 330, "known calories sync unchanged");
   assert(aActs.some(a => a.title === "Store accounts"), "device A's own data is still there");
   assert((await LXA.db.all("categories")).length === catsB.length, "device A gained no duplicates either");
 

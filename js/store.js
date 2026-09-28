@@ -193,15 +193,29 @@
       meal: f.meal || "Snack",
       name: f.name,
       quantity: Number(f.quantity) || 1,
-      unit: f.unit || "serving",
-      calories: LX.round(f.calories || 0, 1),
-      protein: LX.round(f.protein || 0, 1),
-      carbs: LX.round(f.carbs || 0, 1),
-      fat: LX.round(f.fat || 0, 1),
-      fiber: LX.round(f.fiber || 0, 1)
+      unit: f.unit || "serving"
     };
+    // Unknown is not zero: a value nobody knows is saved empty (null), and an
+    // entry with no calories shows as "Nutrition missing" until it is filled in.
+    NUTRIENTS.forEach(function (k) {
+      var v = nutrientValue(f[k]);
+      rec[k] = v === null ? null : LX.round(v, 1);
+    });
     if (f.created_at) rec.created_at = f.created_at;
     return db.put("food_entries", rec);
+  };
+
+  var NUTRIENTS = ["calories", "protein", "carbs", "fat", "fiber"];
+  store.NUTRIENTS = NUTRIENTS;
+  /** A number, or null when the value is blank or not a number. */
+  function nutrientValue(v) {
+    if (v === null || v === undefined || v === "") return null;
+    var n = Number(v);
+    return isFinite(n) ? n : null;
+  }
+  /** True when an entry's calories are not known. */
+  store.nutritionMissing = function (entry) {
+    return !entry || entry.calories === null || entry.calories === undefined || entry.calories === "";
   };
 
   /** Scale a preset from LX.COMMON_FOODS to the quantity actually entered.
@@ -211,13 +225,15 @@
     var q = Number(qty);
     if (!isFinite(q) || q < 0) q = 0;
     var factor = preset.size ? q / preset.size : q;
+    // a value that was never known stays unknown however much you had
+    function sc(v, dp) { return v === null ? null : LX.round((v || 0) * factor, dp); }
     return {
       name: preset.name, quantity: q, unit: preset.unit,
-      calories: LX.round((preset.kcal || 0) * factor, 0),
-      protein: LX.round((preset.p || 0) * factor, 1),
-      carbs: LX.round((preset.c || 0) * factor, 1),
-      fat: LX.round((preset.f || 0) * factor, 1),
-      fiber: LX.round((preset.fib || 0) * factor, 1)
+      calories: sc(preset.kcal, 0),
+      protein: sc(preset.p, 1),
+      carbs: sc(preset.c, 1),
+      fat: sc(preset.f, 1),
+      fiber: sc(preset.fib, 1)
     };
   };
 
@@ -226,13 +242,14 @@
       rescaled when its quantity is edited. */
   store.foodBasisFromEntry = function (entry) {
     var q = Number(entry.quantity) || 1;
+    function per(v) { v = nutrientValue(v); return v === null ? null : v / q; }
     return {
       name: entry.name, unit: entry.unit || "serving", size: 1, serve: q || 1,
-      kcal: (Number(entry.calories) || 0) / q,
-      p: (Number(entry.protein) || 0) / q,
-      c: (Number(entry.carbs) || 0) / q,
-      f: (Number(entry.fat) || 0) / q,
-      fib: (Number(entry.fiber) || 0) / q
+      kcal: per(entry.calories),
+      p: per(entry.protein),
+      c: per(entry.carbs),
+      f: per(entry.fat),
+      fib: per(entry.fiber)
     };
   };
 
@@ -244,15 +261,18 @@
         return (a.date + (a.created_at || "")) < (b.date + (b.created_at || "")) ? 1 : -1;
       });
       var seen = {}, out = [];
+      var list = store.foodList();
       rows.forEach(function (r) {
         var key = String(r.name || "").trim().toLowerCase();
         if (!key || seen[key]) return;
+        // an entry still waiting for its values is no basis for the next one
+        if (store.nutritionMissing(r)) return;
         seen[key] = 1;
         var basis = store.foodBasisFromEntry(r);
         // step by the normal helping where the app knows one, so tapping Egg
         // three times still means three eggs rather than three of whatever was
         // logged last time
-        var preset = LX.COMMON_FOODS.find(function (f) {
+        var preset = list.find(function (f) {
           return f.name.toLowerCase() === key && f.unit === basis.unit;
         });
         if (preset) basis.serve = preset.serve;
@@ -260,6 +280,129 @@
       });
       return out.slice(0, limit || 8);
     });
+  };
+
+  /* ---------- the food list: your values, matching, working out ---------- */
+  /** A food name reduced to what matters for matching: lower case, letters and
+      digits only, and each word without a plural "s" — so "Eggs", "egg" and
+      "EGG" are the same, and "Egg (whole)" is "egg whole". Nothing looser than
+      that: "Chicken curry" is not "Chicken". */
+  function foodKey(name) {
+    return String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ")
+      .map(function (w) { return w.length > 3 && /[^s]s$/.test(w) ? w.slice(0, -1) : w; })
+      .join(" ");
+  }
+  store.foodKey = foodKey;
+
+  /** The built-in food list with your own values (Settings → Food values) in
+      place of the built-in ones. */
+  store.foodList = function () {
+    var mine = store.settings.food_values || {};
+    return LX.COMMON_FOODS.map(function (f) {
+      var v = mine[foodKey(f.name)];
+      return v ? Object.assign({}, f, v, { edited: true }) : f;
+    });
+  };
+  /** v: {size, kcal, p, c, f, fib, units} — per `size` of the food's own unit. */
+  store.saveFoodValues = function (name, v) {
+    var mine = Object.assign({}, store.settings.food_values || {});
+    var rec = { size: Number(v.size), kcal: Number(v.kcal) || 0, p: Number(v.p) || 0, c: Number(v.c) || 0,
+      f: Number(v.f) || 0, fib: Number(v.fib) || 0 };
+    if (v.units) rec.units = v.units;
+    mine[foodKey(name)] = rec;
+    return store.saveSettings({ food_values: mine });
+  };
+  store.resetFoodValues = function (name) {
+    var mine = Object.assign({}, store.settings.food_values || {});
+    delete mine[foodKey(name)];
+    return store.saveSettings({ food_values: mine });
+  };
+
+  /* Units as people and ChatGPT write them. kg and litres become g and ml. */
+  var UNIT_WORDS = {
+    g: ["g", "gm", "gms", "gr", "grm", "gram", "grams", "gramme", "grammes"],
+    kg: ["kg", "kgs", "kilo", "kilos", "kilogram", "kilograms"],
+    ml: ["ml", "mls", "millilitre", "millilitres", "milliliter", "milliliters"],
+    l: ["l", "ltr", "ltrs", "litre", "litres", "liter", "liters"],
+    piece: ["piece", "pieces", "pc", "pcs", "nos", "no", "number", "whole", "unit", "units", "count"],
+    scoop: ["scoop", "scoops"]
+  };
+  var UNIT_SCALE = { kg: ["g", 1000], l: ["ml", 1000] };
+  store.normUnit = function (u) {
+    var w = String(u === null || u === undefined ? "" : u).trim().toLowerCase().replace(/\.$/, "");
+    if (!w) return "";
+    for (var k in UNIT_WORDS) if (UNIT_WORDS[k].indexOf(w) >= 0) return k;
+    return w;
+  };
+  /** A quantity in `unit`, turned into the food's own unit — or null when the
+      two cannot be converted without guessing (a cup of rice, grams of egg). */
+  store.convertQty = function (qty, unit, food) {
+    var u = store.normUnit(unit), q = Number(qty);
+    if (!u) return q;                                   // no unit: the food's own
+    if (UNIT_SCALE[u]) { q = q * UNIT_SCALE[u][1]; u = UNIT_SCALE[u][0]; }
+    if (u === store.normUnit(food.unit)) return q;
+    if (food.units && food.units[u]) return q * food.units[u];
+    return null;
+  };
+
+  /** The food-list entry a name refers to, by its exact name or an alias.
+      Returns {food, fits} — fits is false when the food is known but measured
+      in a unit this one cannot be converted to — or null for an unknown name. */
+  store.matchFood = function (name, unit) {
+    var key = foodKey(name);
+    if (!key) return null;
+    var hits = store.foodList().filter(function (f) {
+      if (f.custom) return false;                       // "enter your own" has no values
+      return [f.name, f.as].concat(f.aliases || []).some(function (n) { return n && foodKey(n) === key; });
+    });
+    if (!hits.length) return null;
+    var fit = hits.find(function (f) { return store.convertQty(1, unit, f) !== null; });
+    return fit ? { food: fit, fits: true } : { food: hits[0], fits: false };
+  };
+
+  /** Work out one food entry, as JSON import does.
+      item: {name, quantity, unit, calories, protein, carbs, fat, fiber}
+      - values given are kept exactly as given
+      - anything not given is calculated from the food list, when the name is
+        recognised and its unit converts (7 eggs = 7 x one egg; 250 g of rice =
+        2.5 x 100 g)
+      - anything still unknown stays null. With no calories the entry is
+        "Nutrition missing" — never 0 kcal.
+      Returns the entry's fields plus: food (the matched food, or null), fits,
+      calculated (the values that came from the list), assumedUnit,
+      assumedQuantity, missing. */
+  store.resolveFood = function (item) {
+    var qty = nutrientValue(item.quantity);
+    var assumedQuantity = !qty || qty < 0;
+    if (assumedQuantity) qty = 1;
+    var unit = item.unit === null || item.unit === undefined ? "" : String(item.unit).trim();
+    var out = {
+      name: String(item.name || "").trim(), quantity: qty, unit: unit || "serving",
+      food: null, fits: false, calculated: [], assumedUnit: false, assumedQuantity: assumedQuantity
+    };
+    var given = {};
+    NUTRIENTS.forEach(function (k) {
+      var v = nutrientValue(item[k]);
+      given[k] = v !== null && v >= 0 ? v : null;
+    });
+    var m = store.matchFood(out.name, unit);
+    if (m) { out.food = m.food; out.fits = m.fits; }
+    if (m && m.fits) {
+      var q = store.convertQty(qty, unit, m.food);
+      out.name = m.food.as || m.food.name;
+      out.quantity = LX.round(q, 2);
+      out.unit = m.food.unit;
+      out.assumedUnit = !unit;
+      var scaled = store.scaleFood(m.food, q);
+      NUTRIENTS.forEach(function (k) {
+        if (given[k] !== null) out[k] = given[k];
+        else { out[k] = scaled[k]; out.calculated.push(k); }
+      });
+    } else {
+      NUTRIENTS.forEach(function (k) { out[k] = given[k]; });
+    }
+    out.missing = out.calories === null;
+    return out;
   };
 
   /* ---------- workouts ---------- */
@@ -387,7 +530,8 @@
         protein: LX.sum(foods, function (f) { return f.protein; }),
         carbs: LX.sum(foods, function (f) { return f.carbs; }),
         fat: LX.sum(foods, function (f) { return f.fat; }),
-        fiber: LX.sum(foods, function (f) { return f.fiber; })
+        fiber: LX.sum(foods, function (f) { return f.fiber; }),
+        missing: foods.filter(store.nutritionMissing).length
       };
 
       var catRows = Object.keys(byCat).map(function (id) {
@@ -456,7 +600,8 @@
           protein: LX.sum(dayFoods, function (f) { return f.protein; }),
           carbs: LX.sum(dayFoods, function (f) { return f.carbs || 0; }),
           fat: LX.sum(dayFoods, function (f) { return f.fat || 0; }),
-          hasFood: dayFoods.length > 0,
+          // a day whose only food is "Nutrition missing" is unknown, not a fast
+          hasFood: dayFoods.some(function (f) { return !store.nutritionMissing(f); }),
           workouts: workouts.filter(function (w) { return w.date === day; }).length,
           weight: (weights.find(function (w) { return w.date === day; }) || {}).weight || null
         };

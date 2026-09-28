@@ -25,7 +25,9 @@
     food: [
       { name: "Egg (whole)", quantity: 4, unit: "piece", meal: "Breakfast" },
       { name: "Chicken breast", quantity: 300, unit: "g", meal: "Lunch" },
-      { name: "Cooked rice", quantity: 250, unit: "g", meal: "Lunch" }
+      { name: "Cooked rice", quantity: 250, unit: "g", meal: "Lunch" },
+      { name: "Homemade chicken curry", quantity: 200, unit: "g", meal: "Dinner",
+        calories: 310, protein: 26, carbs: 8, fat: 19, fiber: 2 }
     ],
     weight: { value: 78.4, unit: "kg" },
     measurements: { Chest: 100, Waist: 81, "Left Biceps": 35, "Right Biceps": 35 },
@@ -127,31 +129,37 @@
         });
       });
 
-      /* food */
+      /* food — calories and macros given in the JSON are kept exactly as
+         given; anything not given is calculated from the food list (7 eggs =
+         7 x one egg); a food that can't be worked out is saved as "Nutrition
+         missing", never as 0 kcal. */
+      var matched = [];
       (day.food || day.foods || []).forEach(function (f) {
-        if (!f.name) { out.errors.push(where + "a food entry has no name."); return; }
-        var qty = num(f.quantity) || 1;
+        if (!f || typeof f !== "object" || !f.name) { out.errors.push(where + "a food entry has no name."); return; }
+        var r = store.resolveFood(foodFields(f));
+        var label = '"' + f.name + '"';
         var entry = {
-          date: date, meal: f.meal || "Snack", name: f.name, quantity: qty, unit: f.unit || "serving",
-          calories: num(f.calories), protein: num(f.protein), carbs: num(f.carbs), fat: num(f.fat), fiber: num(f.fiber)
+          date: date, meal: f.meal || "Snack", name: r.name, quantity: r.quantity, unit: r.unit,
+          calories: r.calories, protein: r.protein, carbs: r.carbs, fat: r.fat, fiber: r.fiber
         };
-        if (entry.calories === null) {
-          var preset = LX.COMMON_FOODS.find(function (p) { return p.name.toLowerCase() === String(f.name).toLowerCase(); });
-          if (preset) {
-            var scaled = store.scaleFood(preset, qty);
-            entry.calories = scaled.calories; entry.protein = scaled.protein;
-            entry.carbs = scaled.carbs; entry.fat = scaled.fat; entry.fiber = scaled.fiber;
-            entry.unit = f.unit || preset.unit;
-            out.warnings.push(where + '"' + f.name + '" had no calories — filled in from the built-in food list.');
-          } else {
-            entry.calories = 0;
-            out.warnings.push(where + '"' + f.name + '" has no calories and is not in the food list — saved as 0 kcal.');
-          }
+        if (r.fits && foodKeyChanged(f.name, r.name)) matched.push(f.name + " → " + r.name);
+        if (r.assumedQuantity) out.warnings.push(where + label + " has no quantity — counted as 1 " + r.unit + ".");
+        if (r.assumedUnit) out.warnings.push(where + label + " has no unit — counted in " + r.unit + ", the unit the food list uses.");
+        if (r.missing) {
+          out.warnings.push(where + label + (r.food && !r.fits
+            ? " is " + (r.food.as || r.food.name) + " in the food list, which is measured in " + r.food.unit +
+              ', not "' + f.unit + '", so its calories can\'t be worked out.'
+            : " is not in the food list and has no calories.") +
+            ' It will be saved as "Nutrition missing" — add the values afterwards by tapping it in Health → Food, or include calories in the JSON.');
         }
-        ["calories", "protein", "carbs", "fat", "fiber"].forEach(function (k) { entry[k] = entry[k] || 0; });
         payload.food.push(entry);
-        out.items.push({ kind: entry.name, text: LX.num(qty, qty % 1 ? 1 : 0) + " " + entry.unit + " · " + LX.num(entry.calories) + " kcal" });
+        out.items.push({
+          kind: entry.name, missing: r.missing,
+          text: LX.num(entry.quantity, entry.quantity % 1 ? 1 : 0) + " " + entry.unit + " · " +
+            (r.missing ? "Nutrition missing" : LX.num(entry.calories) + " kcal" + (r.calculated.length ? " · calculated" : ""))
+        });
       });
+      if (matched.length) out.warnings.push(where + "Matched to the food list: " + matched.join(", ") + ".");
 
       /* weight */
       var wRaw = day.weight !== undefined ? day.weight : day.weight_kg;
@@ -194,6 +202,30 @@
     if (!out.items.length && !out.errors.length) out.errors.push("Nothing importable found. Check the field names against the schema.");
     return out;
   };
+
+  /* The nutrition fields, under the names assistants tend to use for them,
+     including values nested under "nutrition" or "macros". */
+  function foodFields(f) {
+    var sources = [f, f.nutrition || {}, f.macros || {}];
+    function pick() {
+      for (var s = 0; s < sources.length; s++) {
+        for (var i = 0; i < arguments.length; i++) {
+          var v = sources[s][arguments[i]];
+          if (v !== undefined && v !== null && v !== "") return v;
+        }
+      }
+      return null;
+    }
+    return {
+      name: f.name, quantity: f.quantity, unit: f.unit,
+      calories: pick("calories", "kcal", "calories_kcal", "energy_kcal"),
+      protein: pick("protein", "protein_g"),
+      carbs: pick("carbs", "carbohydrates", "carbs_g", "carbohydrates_g"),
+      fat: pick("fat", "fat_g", "fats"),
+      fiber: pick("fiber", "fibre", "fiber_g", "fibre_g")
+    };
+  }
+  function foodKeyChanged(a, b) { return store.foodKey(a) !== store.foodKey(b); }
 
   function matchCategory(name) {
     if (!name) return null;

@@ -78,7 +78,7 @@ css/base.css          layout, navigation, safe areas
 css/components.css    cards, buttons, sheets, forms, charts, toasts
 js/config.js          your Supabase keys (the only file you edit)
 js/util.js            dates, durations, formatting, icons
-js/data/seed.js       starting categories, exercises, foods, goals
+js/data/seed.js       starting categories, exercises, foods (with their other names), goals
 js/db.js              IndexedDB: reads, writes, soft deletes, outbox
 js/store.js           meaning: day summaries, ranges, PRs, goals
 js/ui.js              sheets, toasts, confirms, form fragments
@@ -116,7 +116,7 @@ breaking the data.
 - **Health** — Workout, Insights, Tests, Weekly, Food, Sleep, Weight, Body. Each
   with its own log, history and charts.
 - **Progress** — 7 / 30 / 90 / 365 days across Time, Body, Fitness, Nutrition.
-- **Settings** (the gear, top right) — account and sync, JSON import, data and backup, goals, categories,
+- **Settings** (the gear, top right) — account and sync, JSON import, data and backup, goals, food values, categories,
   appearance, schema reference.
 
 ### The 24-hour rule
@@ -435,18 +435,48 @@ Full example: see `sample-import.json`.
 | `sleep` | `duration_minutes`, or `bedtime` + `wake_time`. Optional `quality` 1–5, `notes`. |
 | `activities[]` | `category`, `duration_minutes`, optional `title`, `start_time`, `notes`. Unknown categories are created. |
 | `workout` or `workouts[]` | `type`, `duration_minutes`, `notes`, `exercises[]` → `name`, `sets[]` → `weight_kg`, `reps`, `duration_sec`. |
-| `food[]` | `name`, `quantity`, `unit`, `meal`, `calories`, `protein`, `carbs`, `fat`, `fiber`. Known foods fill their own macros. |
+| `food[]` | `name`, `quantity`, `unit`, `meal`, and optionally `calories`, `protein`, `carbs`, `fat`, `fiber`. See "How food is worked out" below. |
 | `weight` | a number, or `{ "value": 78.4, "unit": "kg", "note": "" }`. |
 | `measurements` | `{ "Chest": 100 }` or `[{ "name": "Chest", "value": 100, "unit": "cm" }]`. |
 | `review` | `planned`, `completed`, `journal`. |
 
 Several days at once: send an array, or `{ "days": [ … ] }`.
 
+### How food is worked out
+
+1. **Values in the JSON are kept exactly as given.** Use this for homemade
+   curry, sweets, restaurant food — anything the food list can't know.
+2. **Anything left out is calculated from the food list** (Settings → Food
+   values), when the name is recognised and the unit fits: 7 eggs is 7 × one
+   egg, 300 g chicken is 3 × 100 g, 200 ml milk is 2 × 100 ml, 15 g whey is
+   half of a 30 g scoop. kg and litres are converted; "1 scoop" of whey uses
+   the scoop size in Food values.
+3. **Names are matched exactly, or by a short list of common names** —
+   Egg/Eggs/Whole egg → Egg (whole), Chicken → Chicken breast, Rice → Cooked
+   rice, Milk → Milk (full fat), Curd/Yogurt/Yoghurt → Curd / yoghurt, Oats →
+   Oats (dry), plus Banana, Dates, Chapati/Roti, Carrot, Roasted Kabuli Chana,
+   Whey. Capitals, brackets and a plural "s" don't matter. Nothing looser:
+   "Chicken curry" is not "Chicken". The preview lists every name it matched.
+4. **A food that can't be worked out is saved as "Nutrition missing"**, never
+   as 0 kcal — an unknown name with no calories, or a unit that can't be
+   converted without guessing (a cup of rice, grams of egg). The preview warns
+   you, Health → Food shows it in amber, and tapping it lets you type the
+   values. Unknown is not the same as zero.
+5. **Logged food keeps the values it was saved with.** Changing a food under
+   Settings → Food values (say, your whey protein's label) affects future
+   imports only.
+
+Units the food list uses: things you count — eggs, bananas, dates, chapati,
+idli, dosa — in `piece`; milk in `ml`; the rest in `g`.
+
 A prompt that works with any assistant:
 
 > Convert this into LifeOS import JSON. Use the schema with date, sleep,
 > activities, workout, food, weight, measurements, review. Durations in minutes,
-> weights in kg. Reply with JSON only.
+> weights in kg. For food, count eggs, bananas, dates, chapati and other things
+> you count in "piece", milk in "ml" and everything else in "g". For homemade
+> dishes, sweets and restaurant food, include calories, protein, carbs, fat and
+> fiber for the amount eaten. Reply with JSON only.
 
 ---
 
@@ -486,8 +516,10 @@ that file, not extracting anything from this app.
   three eggs. Changing the quantity, by typing or with the − and + buttons,
   recalculates the calories and macros; typing over a value yourself stops the
   app recalculating and your own numbers stand. Tap any entry in Health → Food to
-  correct it afterwards. Foods you have logged before appear at the top of the
-  search with the values you saved, so the list grows from what you actually eat.
+  correct it afterwards. A calories box left empty is saved as "Nutrition
+  missing" rather than 0, and the day's totals say they are incomplete. Foods
+  you have logged before appear at the top of the search with the values you
+  saved, so the list grows from what you actually eat.
 - Weight charts do not start at zero (small changes would be invisible), and the
   chart says to read the direction rather than the slope.
 - No stock, finance, or social features, by design.

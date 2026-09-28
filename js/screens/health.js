@@ -191,6 +191,9 @@
           LX.esc(LX.D.short(today)) + "</span></div>" +
           macroRow("Calories", n.calories, kcalGoal, "kcal") +
           macroRow("Protein", n.protein, proGoal, "g") +
+          (n.missing ? '<p class="hint" style="margin:0 0 10px;color:var(--warn)">' + n.missing +
+            (n.missing === 1 ? " food has" : " foods have") + " nutrition missing, so today\u2019s totals are incomplete. " +
+            "Tap it below to add the values.</p>" : "") +
           '<div class="legend" style="margin-top:14px">' +
           ["carbs", "fat", "fiber"].map(function (k) {
             return "<span>" + k.charAt(0).toUpperCase() + k.slice(1) + " <b style='font-weight:600;margin-left:3px'>" +
@@ -216,16 +219,22 @@
           html += meals.map(function (m) {
             var items = s.foods.filter(function (f) { return f.meal === m; });
             if (!items.length) return "";
+            var gaps = items.filter(store.nutritionMissing).length;
             return '<div class="card flush"><div style="padding:16px 20px 2px" class="row-between">' +
               '<h2 style="font:var(--t-h2)">' + m + "</h2><span class='small muted'>" +
-              LX.num(LX.sum(items, function (f) { return f.calories; })) + " kcal</span></div><div class='list'>" +
+              LX.num(LX.sum(items, function (f) { return f.calories; })) + " kcal" +
+              (gaps ? " + " + gaps + " missing" : "") + "</span></div><div class='list'>" +
               items.map(function (f) {
+                var qty = LX.num(f.quantity, f.quantity % 1 ? 1 : 0) + " " + LX.esc(f.unit);
+                var miss = store.nutritionMissing(f);
                 return '<div class="list-row">' +
                   '<button class="grow" data-edit-food="' + f.id + '" style="background:none;border:0;padding:0;' +
                   'text-align:left;min-width:0;color:inherit;font:inherit">' +
                   '<span class="primary">' + LX.esc(f.name) + "</span><br>" +
-                  '<span class="secondary">' + LX.num(f.quantity, f.quantity % 1 ? 1 : 0) + " " + LX.esc(f.unit) +
-                  " · " + LX.num(f.protein, 1) + "g protein</span></button>" +
+                  (miss
+                    ? '<span class="secondary" style="color:var(--warn)">' + qty + " · Nutrition missing — tap to add</span></button>"
+                    : '<span class="secondary">' + qty +
+                      (f.protein === null || f.protein === undefined ? "" : " · " + LX.num(f.protein, 1) + "g protein") + "</span></button>") +
                   '<span class="value">' + LX.num(f.calories) + "</span>" +
                   '<button class="icon-btn" data-del-food="' + f.id + '" aria-label="Delete">' + LX.icon("trash") + "</button></div>";
               }).join("") + "</div>" +
